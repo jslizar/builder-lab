@@ -1,0 +1,14 @@
+# Business Prompts
+
+Prompts for strategy, analysis, and business operations.
+
+## Contents
+
+_Resources coming soon. Join [Builder Lab](https://www.skool.com/builder-lab) to get notified when new prompts drop._
+
+## How to Use
+
+Each resource in this folder includes:
+- A description of what it does
+- Setup instructions
+- A usage example
