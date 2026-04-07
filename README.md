@@ -10,7 +10,7 @@ Learn to build real products with AI. No coding background required.
 |--------|-----------------|
 | `claude-code/` | Skills, slash commands, CLAUDE.md templates, and multi-agent setups for Claude Code |
 | `prompts/` | Tested prompts for coding, writing, and business use cases |
-| `automations/` | n8n workflows, Zapier templates, and standalone scripts |
+| `automations/` | n8n workflows and standalone scripts |
 | `templates/` | Starter code for landing pages, dashboards, and SaaS projects |
 | `resources/` | Tool reviews and written guides |
 

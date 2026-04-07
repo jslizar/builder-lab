@@ -7,7 +7,6 @@ Workflow automations you can import and run.
 | Folder | What's Inside |
 |--------|--------------|
 | `n8n-workflows/` | 6 production n8n workflows — lead gen, outreach, content intelligence |
-| `zapier-templates/` | Coming soon |
 | `scripts/` | Coming soon |
 
 ## How to Use
