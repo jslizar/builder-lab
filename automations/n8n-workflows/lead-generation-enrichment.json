@@ -1,0 +1,1335 @@
+{
+  "name": "Lead Generation & Enrichment Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Configure search parameters\n// Pass metros + queries via webhook body, or use defaults\nconst input = $input.first().json;\nconst body = input.body || input;\n\nconst metros = body.metros || [\n  'Nashville, TN', 'Austin, TX', 'Miami, FL', 'Denver, CO', 'Scottsdale, AZ',\n  'Orlando, FL', 'San Diego, CA', 'Phoenix, AZ', 'Las Vegas, NV', 'Tampa, FL',\n  'Charleston, SC', 'Savannah, GA', 'New Orleans, LA', 'Atlanta, GA',\n  'Dallas, TX', 'Houston, TX', 'Seattle, WA', 'Portland, OR', 'Charlotte, NC',\n  'Raleigh, NC', 'Asheville, NC', 'Park City, UT', 'Palm Springs, CA',\n  'Destin, FL', 'Pigeon Forge, TN', 'Gatlinburg, TN', 'Sedona, AZ',\n  'Big Bear Lake, CA', 'Lake Tahoe, CA', 'Key West, FL', 'Hilton Head, SC'\n];\n\nconst queries = body.queries || [\n  'short term rental management company',\n  'vacation rental management company',\n  'Airbnb management company',\n  'Airbnb property manager',\n  'property management company'\n];\n\n// Build search combinations\nconst searches = [];\nfor (const metro of metros) {\n  for (const query of queries) {\n    searches.push({\n      json: {\n        metro: metro,\n        query: query,\n        searchText: query + ' in ' + metro\n      }\n    });\n  }\n}\n\nreturn searches;"
+      },
+      "id": "config",
+      "name": "Configure Searches",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split",
+      "name": "One Search at a Time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        176,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://maps.googleapis.com/maps/api/place/textsearch/json?query={{ encodeURIComponent($json.searchText) }}&key=YOUR_GOOGLE_PLACES_API_KEY",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "places-search",
+      "name": "Google Places — Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        400,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nconst searchMeta = $('One Search at a Time').first().json;\n\nconst results = response.results || [];\nif (results.length === 0) return [];\n\n// Skip dedup cache - let Google Sheets / Clay handle duplicates downstream\n// This prevents the cross-execution caching that blocks subsequent webhook runs\nconst newResults = [];\nconst seenInBatch = {};\n\nfor (const place of results) {\n  if (seenInBatch[place.place_id]) continue;\n  seenInBatch[place.place_id] = true;\n  \n  newResults.push({\n    json: {\n      place_id: place.place_id,\n      business_name: place.name || '',\n      address: place.formatted_address || '',\n      rating: place.rating || '',\n      review_count: place.user_ratings_total || 0,\n      types: (place.types || []).join(', '),\n      business_status: place.business_status || '',\n      lat: place.geometry ? place.geometry.location.lat : '',\n      lng: place.geometry ? place.geometry.location.lng : '',\n      metro: searchMeta.metro,\n      query: searchMeta.query\n    }\n  });\n}\n\nreturn newResults;"
+      },
+      "id": "extract-places",
+      "name": "Extract & Dedupe Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-details",
+      "name": "One Place at a Time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        848,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://maps.googleapis.com/maps/api/place/details/json?place_id={{ $json.place_id }}&fields=formatted_phone_number,website,url,name&key=YOUR_GOOGLE_PLACES_API_KEY",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "places-detail",
+      "name": "Google Places — Get Details",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1136,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const detail = $input.first().json;\nconst placeData = $('One Place at a Time').first().json;\nconst result = detail.result || {};\n\nreturn [{\n  json: {\n    ...placeData,\n    phone: result.formatted_phone_number || '',\n    website: result.website || '',\n    google_url: result.url || ''\n  }\n}];"
+      },
+      "id": "merge-detail",
+      "name": "Merge Place Details",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1296,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "has-website",
+      "name": "Has Website?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        1520,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.firecrawl.dev/v1/scrape",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"url\": \"{{ $json.website }}\", \"formats\": [\"markdown\"], \"onlyMainContent\": true}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "firecrawl",
+      "name": "Firecrawl — Scrape Website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1744,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_FIRECRAWL_CRED_ID",
+          "name": "Firecrawl API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const scrapeResult = $input.first().json;\nconst placeData = $('Has Website?').first().json;\nconst markdown = (scrapeResult?.data?.markdown || '').substring(0, 3000);\n\n// Extract signals from website content\nconst lower = markdown.toLowerCase();\n\n// Try to find email addresses\nconst emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g;\nconst emails = (markdown.match(emailRegex) || []).filter(e => !e.includes('example.com'));\n\n// Try to find owner/team names (common patterns)\nconst teamPatterns = /(?:owner|ceo|founder|president|principal|managing|director)[:\\s]+([A-Z][a-z]+ [A-Z][a-z]+)/gi;\nconst teamMatches = [...markdown.matchAll(teamPatterns)].map(m => m[1]);\n\n// Detect PMS/tech\nconst pmsKeywords = {\n  'appfolio': 'AppFolio', 'buildium': 'Buildium', 'propertyware': 'Propertyware',\n  'rent manager': 'Rent Manager', 'yardi': 'Yardi', 'realpage': 'RealPage',\n  'entrata': 'Entrata', 'resman': 'ResMan', 'guesty': 'Guesty',\n  'hostaway': 'Hostaway', 'hospitable': 'Hospitable', 'ownerrez': 'OwnerRez',\n  'lodgify': 'Lodgify', 'streamline': 'Streamline', 'track hospitality': 'Track'\n};\nconst detectedPMS = [];\nfor (const [key, name] of Object.entries(pmsKeywords)) {\n  if (lower.includes(key)) detectedPMS.push(name);\n}\n\n// Detect services offered\nconst services = [];\nif (lower.includes('short-term') || lower.includes('short term') || lower.includes('airbnb') || lower.includes('vrbo')) services.push('STR');\nif (lower.includes('long-term') || lower.includes('long term') || lower.includes('residential')) services.push('LTR');\nif (lower.includes('commercial')) services.push('Commercial');\nif (lower.includes('hoa') || lower.includes('association')) services.push('HOA');\n\n// Try to find unit/property count\nconst unitPatterns = /(?:(\\d[,\\d]+)\\s*(?:units?|properties|doors|homes|rentals))/gi;\nconst unitMatches = [...markdown.matchAll(unitPatterns)].map(m => m[1].replace(',',''));\nconst estimatedUnits = unitMatches.length > 0 ? Math.max(...unitMatches.map(Number)) : '';\n\nreturn [{\n  json: {\n    ...placeData,\n    emails_found: emails.join('; '),\n    team_names: teamMatches.join('; '),\n    pms_detected: detectedPMS.join(', '),\n    services: services.join(', '),\n    estimated_units: estimatedUnits,\n    website_scraped: true,\n    raw_content_preview: markdown.substring(0, 500)\n  }\n}];"
+      },
+      "id": "extract-enrichment",
+      "name": "Extract Enrichment Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const placeData = $('Has Website?').first().json;\nreturn [{\n  json: {\n    ...placeData,\n    emails_found: '',\n    team_names: '',\n    pms_detected: '',\n    services: '',\n    estimated_units: '',\n    website_scraped: false,\n    raw_content_preview: ''\n  }\n}];"
+      },
+      "id": "no-website",
+      "name": "No Website — Pass Through",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1968,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Just pass through — results accumulate via the loop\nreturn $input.all();"
+      },
+      "id": "collect",
+      "name": "Collect Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3088,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Scrape Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Leads",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Business Name": "={{ $json.business_name }}",
+            "Address": "={{ $json.address }}",
+            "Business Phone": "={{ $json.business_phone }}",
+            "Website": "={{ $json.website }}",
+            "Rating": "={{ $json.rating }}",
+            "Reviews": "={{ $json.review_count }}",
+            "Metro": "={{ $json.metro }}",
+            "Owner Name": "={{ $json.owner_name }}",
+            "Owner Title": "={{ $json.owner_title }}",
+            "Owner Email": "={{ $json.owner_email }}",
+            "Owner Phone": "={{ $json.owner_phone }}",
+            "Phone Source": "={{ $json.phone_source }}",
+            "Services": "={{ $json.services }}",
+            "Estimated Units": "={{ $json.estimated_units }}",
+            "Emails Found": "={{ $json.emails_found }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Business Name",
+              "displayName": "Business Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Business Phone",
+              "displayName": "Business Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Reviews",
+              "displayName": "Reviews",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Metro",
+              "displayName": "Metro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Owner Name",
+              "displayName": "Owner Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Owner Title",
+              "displayName": "Owner Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Owner Email",
+              "displayName": "Owner Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Owner Personal Email",
+              "displayName": "Owner Personal Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Owner Phone",
+              "displayName": "Owner Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Phone Source",
+              "displayName": "Phone Source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Owner LinkedIn",
+              "displayName": "Owner LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "PMS Detected",
+              "displayName": "PMS Detected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Services",
+              "displayName": "Services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Estimated Units",
+              "displayName": "Estimated Units",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Emails Found",
+              "displayName": "Emails Found",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "PDL Match",
+              "displayName": "PDL Match",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "write-sheet",
+      "name": "Write to Google Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        4304,
+        256
+      ],
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.opencorporates.com/v0.4/companies/search?q={{ encodeURIComponent($json.business_name) }}&jurisdiction_code=us_{{ $json.metro ? $json.metro.split(', ').pop().toLowerCase() : 'az' }}&per_page=1",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 10000
+        }
+      },
+      "id": "opencorp",
+      "name": "OpenCorporates — Find Business",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2192,
+        208
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ocResponse = $input.first().json;\nconst enrichedData = $('Extract Enrichment Data').first()?.json || $('No Website — Pass Through').first()?.json || {};\n\n// Get officers/directors from OpenCorporates\nconst company = (ocResponse?.results?.companies || [])[0]?.company || {};\nconst officers = company.officers || [];\nconst owner = officers.find(o => {\n  const role = (o.officer?.position || '').toLowerCase();\n  return role.includes('agent') || role.includes('officer') || role.includes('director') || role.includes('manager') || role.includes('member') || role.includes('president');\n})?.officer || {};\n\n// Combine with names found on website\nconst ownerName = owner.name || enrichedData.team_names || '';\n\nreturn [{\n  json: {\n    ...enrichedData,\n    owner_name: ownerName,\n    owner_title: owner.position || '',\n    opencorp_company: company.name || '',\n    opencorp_status: company.current_status || '',\n    incorporation_date: company.incorporation_date || '',\n    registered_address: company.registered_address_in_full || ''\n  }\n}];"
+      },
+      "id": "extract-owner",
+      "name": "Extract Owner from Filings",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.owner_name }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "has-owner",
+      "name": "Found Owner Name?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2640,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.first().json;\nreturn [{\n  json: {\n    business_name: data.business_name || '',\n    address: data.address || '',\n    business_phone: data.phone || '',\n    website: data.website || '',\n    rating: data.rating || '',\n    review_count: data.review_count || '',\n    metro: data.metro || '',\n    owner_name: data.owner_name || '',\n    owner_title: data.owner_title || '',\n    owner_email: data.owner_email || '',\n    owner_phone: data.owner_phone || '',\n    phone_source: data.phone_source || '',\n    pms_detected: data.pms_detected || '',\n    services: data.services || '',\n    estimated_units: data.estimated_units || '',\n    emails_found: data.emails_found || '',\n    opencorp_status: data.opencorp_status || '',\n    incorporation_date: data.incorporation_date || ''\n  }\n}];"
+      },
+      "id": "final-v2",
+      "name": "Format Final Record",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        976,
+        240
+      ],
+      "id": "80f0d943-9b17-440c-a9f3-f2da1827e4b6",
+      "name": "Wait",
+      "webhookId": "00000000-0000-0000-0000-000000000001"
+    },
+    {
+      "parameters": {
+        "path": "YOUR-WEBHOOK-PATH-UUID",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "62d20611-fd9f-4039-89a7-308424aa64b3",
+      "name": "Webhook",
+      "webhookId": "00000000-0000-0000-0000-000000000002"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "YOUR-WEBHOOK-PATH-UUID",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -240,
+        512
+      ],
+      "id": "5cb50754-848a-42fe-a464-213495a983a1",
+      "name": "Webhook1",
+      "webhookId": "00000000-0000-0000-0000-000000000003"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Service providers",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_DATA_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "BusinessName": "={{ $json.business_name }}",
+            "Address": "={{ $json.address }}",
+            "BusinessPhone": "={{ $json.business_phone }}",
+            "Website": "={{ $json.website }}",
+            "Rating": "={{ $json.rating }}",
+            "Reviews": "={{ $json.review_count }}",
+            "Metro": "={{ $json.metro }}",
+            "OwnerName": "={{ $json.owner_name }}",
+            "OwnerTitle": "={{ $json.owner_title }}",
+            "OwnerEmail": "={{ $json.owner_email }}",
+            "OwnerPhone": "={{ $json.owner_phone }}",
+            "PhoneSource": "={{ $json.phone_source }}",
+            "PMSDetected": "={{ $json.pms_detected }}",
+            "Services": "={{ $json.services }}",
+            "EstimatedUnits": "={{ $json.estimated_units }}",
+            "EmailsFound": "={{ $json.emails_found }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "BusinessName",
+              "displayName": "BusinessName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "BusinessPhone",
+              "displayName": "BusinessPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reviews",
+              "displayName": "Reviews",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Metro",
+              "displayName": "Metro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerName",
+              "displayName": "OwnerName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerTitle",
+              "displayName": "OwnerTitle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerEmail",
+              "displayName": "OwnerEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerPersonalEmail",
+              "displayName": "OwnerPersonalEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "OwnerPhone",
+              "displayName": "OwnerPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "PhoneSource",
+              "displayName": "PhoneSource",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerLinkedIn",
+              "displayName": "OwnerLinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "PMSDetected",
+              "displayName": "PMSDetected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Services",
+              "displayName": "Services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "EstimatedUnits",
+              "displayName": "EstimatedUnits",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "EmailsFound",
+              "displayName": "EmailsFound",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "PDLMatch",
+              "displayName": "PDLMatch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        3296,
+        208
+      ],
+      "id": "874b99d2-8fa1-40ec-bac3-c14f94542b7d",
+      "name": "Insert row"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        3888,
+        256
+      ],
+      "id": "52928df0-a69d-42aa-aedd-f344d764be45",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "YOUR_DATA_TABLE_ID",
+          "mode": "list",
+          "cachedResultName": "Service providers",
+          "cachedResultUrl": "/projects/YOUR_PROJECT_ID/datatables/YOUR_DATA_TABLE_ID"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "BusinessName": "={{ $json.business_name }}",
+            "Address": "={{ $json.address }}",
+            "BusinessPhone": "={{ $json.business_phone }}",
+            "Website": "={{ $json.website }}",
+            "Rating": "={{ $json.rating }}",
+            "Reviews": "={{ $json.review_count }}",
+            "Metro": "={{ $json.metro }}",
+            "OwnerName": "={{ $json.owner_name }}",
+            "OwnerTitle": "={{ $json.owner_title }}",
+            "OwnerEmail": "={{ $json.owner_email }}",
+            "OwnerPhone": "={{ $json.owner_phone }}",
+            "PhoneSource": "={{ $json.phone_source }}",
+            "PMSDetected": "={{ $json.pms_detected }}",
+            "Services": "={{ $json.services }}",
+            "EstimatedUnits": "={{ $json.estimated_units }}",
+            "EmailsFound": "={{ $json.emails_found }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "BusinessName",
+              "displayName": "BusinessName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "BusinessPhone",
+              "displayName": "BusinessPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Reviews",
+              "displayName": "Reviews",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Metro",
+              "displayName": "Metro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerName",
+              "displayName": "OwnerName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerTitle",
+              "displayName": "OwnerTitle",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerEmail",
+              "displayName": "OwnerEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerPersonalEmail",
+              "displayName": "OwnerPersonalEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "OwnerPhone",
+              "displayName": "OwnerPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "PhoneSource",
+              "displayName": "PhoneSource",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "OwnerLinkedIn",
+              "displayName": "OwnerLinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "PMSDetected",
+              "displayName": "PMSDetected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Services",
+              "displayName": "Services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "EstimatedUnits",
+              "displayName": "EstimatedUnits",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "EmailsFound",
+              "displayName": "EmailsFound",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "PDLMatch",
+              "displayName": "PDLMatch",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        4080,
+        256
+      ],
+      "id": "6728d49f-bc2a-45bf-bed6-72da120615cc",
+      "name": "Insert row1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Configure Searches": {
+      "main": [
+        [
+          {
+            "node": "One Search at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One Search at a Time": {
+      "main": [
+        [
+          {
+            "node": "Google Places — Search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Google Places — Search": {
+      "main": [
+        [
+          {
+            "node": "Extract & Dedupe Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract & Dedupe Results": {
+      "main": [
+        [
+          {
+            "node": "One Place at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "One Place at a Time": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "One Search at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Places — Get Details": {
+      "main": [
+        [
+          {
+            "node": "Merge Place Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Place Details": {
+      "main": [
+        [
+          {
+            "node": "Has Website?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Website?": {
+      "main": [
+        [
+          {
+            "node": "Firecrawl — Scrape Website",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Website — Pass Through",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Firecrawl — Scrape Website": {
+      "main": [
+        [
+          {
+            "node": "Extract Enrichment Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Enrichment Data": {
+      "main": [
+        [
+          {
+            "node": "OpenCorporates — Find Business",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Website — Pass Through": {
+      "main": [
+        [
+          {
+            "node": "OpenCorporates — Find Business",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Results": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Final Record": {
+      "main": [
+        [
+          {
+            "node": "Collect Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write to Google Sheet": {
+      "main": [
+        []
+      ]
+    },
+    "OpenCorporates — Find Business": {
+      "main": [
+        [
+          {
+            "node": "Extract Owner from Filings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Owner from Filings": {
+      "main": [
+        [
+          {
+            "node": "Found Owner Name?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Found Owner Name?": {
+      "main": [
+        [
+          {
+            "node": "Format Final Record",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Final Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Google Places — Get Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Configure Searches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert row": {
+      "main": [
+        [
+          {
+            "node": "One Place at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Insert row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert row1": {
+      "main": [
+        [
+          {
+            "node": "Write to Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "template-version",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_N8N_INSTANCE_ID"
+  },
+  "id": "WORKFLOW_ID",
+  "tags": []
+}

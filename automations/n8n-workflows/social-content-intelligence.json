@@ -1,0 +1,1710 @@
+{
+  "name": "Social Content Intelligence — Weekly Report",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "# Social Content Intelligence — Weekly Report\n**Version:** 1.0.0  |  **Author:** Otter Labs  |  **Schedule:** Every Monday 9am\n\n## What This Workflow Does\n1. **Collects** your last 30 days of posts from Twitter/X, Instagram, TikTok, LinkedIn, and YouTube in parallel\n2. **Normalizes** all platform data into a unified engagement format\n3. **Analyzes** your top 25 posts with Claude — extracting hook patterns, winning formats, audience psychology\n4. **Researches** trending topics across Perplexity AI, Reddit, X Trending, TikTok, and Google Trends simultaneously\n5. **Generates** 15 high-potential content ideas tailored to your niche and audience\n6. **Publishes** a complete Weekly Content Intelligence Report to Notion with individual idea sub-pages\n7. **Notifies** you via Slack with a summary and Notion link\n\n## Required Credentials (create these in n8n Credentials first)\n| Service | Type | Auth Detail |\n|---------|------|-------------|\n| Twitter/X | HTTP Header Auth | Bearer Token (requires Elevated Access — apply at developer.twitter.com) |\n| Instagram | HTTP Header Auth | Graph API long-lived access token (Business/Creator account required) |\n| TikTok | HTTP Header Auth | Bearer token from TikTok Developer Portal |\n| LinkedIn | OAuth2 API | Client ID + Secret, scopes: r_liteprofile r_ugcposts |\n| YouTube | HTTP Query Auth | name=key, API key from Google Cloud Console |\n| Anthropic | HTTP Header Auth | name=x-api-key, value=your API key from console.anthropic.com |\n| Perplexity | HTTP Header Auth | name=Authorization, value=Bearer YOUR_KEY from perplexity.ai/settings |\n| Reddit | HTTP Header Auth | Access token via Reddit OAuth (script app type) |\n| SerpAPI | HTTP Query Auth | name=api_key from serpapi.com |\n| Notion | Notion API | Integration token from notion.so/my-integrations |\n\n## Configuration\nSet all user-specific values in **⚙️ Config** node before activating.\nDo NOT hardcode values anywhere else — everything flows from Config.\n\n## Output Structure\n- **Notion DB:** 1 Weekly Report parent page + 15 individual content idea child pages\n- **Slack:** Success summary with Notion link, or error alert with failure details\n\n",
+        "height": 1160,
+        "width": 1172,
+        "color": 4
+      },
+      "id": "c642a6e2-6ff8-4d80-9f40-d568edc34940",
+      "name": "📋 Documentation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2144,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Phase 1 — Social Media Data Collection\nFetches your recent posts from all 5 platforms in parallel. Each fetch node has `continueOnFail: true` — if one platform API is down or credentials are wrong, the workflow continues with the others rather than crashing. A tag Set node after each fetch stamps `_platform` onto the response so the Transform node knows where each item came from. The Merge node (mode: append) waits for all 5 branches before continuing.",
+        "height": 200,
+        "width": 960,
+        "color": 5
+      },
+      "id": "4ff61d41-a618-41d6-9456-9db456f96de1",
+      "name": "📊 Phase 1: Social Collection",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -384,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Phase 2 — AI Performance Analysis\nNormalizes all platform data into a unified engagement schema, then selects the top 25 posts by engagement rate. A Code node builds the Claude prompt — injecting your niche, audience, and all post data. Claude analyzes hook patterns, content formats, winning themes, platform-specific tactics, audience psychology, and content gaps. Response is parsed JSON.",
+        "height": 200,
+        "width": 680,
+        "color": 6
+      },
+      "id": "732c8415-546a-461a-9030-715ecf0cc2cd",
+      "name": "🤖 Phase 2: AI Analysis",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1168,
+        -464
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Phase 3 — Trend Research (5 Sources in Parallel)\nRuns simultaneously after the performance analysis completes. **Perplexity** returns AI-synthesized trend narrative. **Reddit** returns the top 15 trending posts across your configured subreddits. **X Trending** returns top trending topics with tweet volume. **TikTok Trends** returns trending hashtags and sounds. **Google Trends** returns search interest timeline for your keywords. All 5 merge before idea generation.",
+        "height": 200,
+        "width": 960,
+        "color": 7
+      },
+      "id": "b65c7d7a-5f19-4909-b91a-f05eb0cac313",
+      "name": "📈 Phase 3: Trend Research",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        -464
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Phase 4 — Notion Publishing\nCreates a parent Weekly Report page in your Notion database (rich blocks: theme, priority ideas, quick wins). Then creates 15 child pages under it — one per content idea — each with: hook, sub-hook, angle, full outline, CTA, platform recommendation, effort level, repurpose suggestions, and trending connection. Aggregates results into one summary item, then sends Slack notification.",
+        "height": 200,
+        "width": 700,
+        "color": 3
+      },
+      "id": "f69f628c-4d27-4586-a50c-c9ffe7875590",
+      "name": "📓 Phase 4: Notion Output",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3152,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "de2731b5-daa4-43df-aff9-0dd5c4c5b052",
+      "name": "🕐 Weekly Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -816,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-01",
+              "name": "twitterUserId",
+              "value": "YOUR_TWITTER_USER_ID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-02",
+              "name": "instagramUserId",
+              "value": "YOUR_INSTAGRAM_BUSINESS_USER_ID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-03",
+              "name": "linkedinAuthorUrn",
+              "value": "urn:li:person:YOUR_LINKEDIN_PERSON_ID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-04",
+              "name": "youtubeChannelId",
+              "value": "YOUR_YOUTUBE_CHANNEL_ID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-05",
+              "name": "niche",
+              "value": "entrepreneurship, personal finance, productivity",
+              "type": "string"
+            },
+            {
+              "id": "cfg-06",
+              "name": "targetAudience",
+              "value": "ambitious 25-40 year olds building wealth and businesses online",
+              "type": "string"
+            },
+            {
+              "id": "cfg-07",
+              "name": "contentGoal",
+              "value": "grow social following and drive newsletter signups",
+              "type": "string"
+            },
+            {
+              "id": "cfg-08",
+              "name": "redditSubreddits",
+              "value": "Entrepreneur+startups+personalfinance+productivity+SideProject",
+              "type": "string"
+            },
+            {
+              "id": "cfg-09",
+              "name": "googleTrendKeywords",
+              "value": "entrepreneurship,side hustle,passive income,financial freedom",
+              "type": "string"
+            },
+            {
+              "id": "cfg-10",
+              "name": "trendResearchQuery",
+              "value": "What are the biggest trending topics and conversations happening right now in entrepreneurship, personal finance, and productivity in 2025? Focus on emerging trends, viral discussions, and rising topics.",
+              "type": "string"
+            },
+            {
+              "id": "cfg-11",
+              "name": "notionDatabaseId",
+              "value": "YOUR_NOTION_DATABASE_ID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-12",
+              "name": "slackWebhookUrl",
+              "value": "YOUR_SLACK_WEBHOOK_URL",
+              "type": "string"
+            },
+            {
+              "id": "cfg-13",
+              "name": "claudeModel",
+              "value": "claude-opus-4-6",
+              "type": "string"
+            },
+            {
+              "id": "cfg-14",
+              "name": "perplexityModel",
+              "value": "sonar-pro",
+              "type": "string"
+            },
+            {
+              "id": "cfg-15",
+              "name": "postsPerPlatform",
+              "value": "50",
+              "type": "string"
+            },
+            {
+              "id": "cfg-16",
+              "name": "contentIdeasCount",
+              "value": "15",
+              "type": "string"
+            },
+            {
+              "id": "cfg-17",
+              "name": "lookbackDays",
+              "value": "30",
+              "type": "string"
+            },
+            {
+              "id": "cfg-18",
+              "name": "tiktokHashtagsToTrack",
+              "value": "entrepreneur,sidehustle,passiveincome,personaldevelopment",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e6b0c0d7-f83b-4500-9b76-ec7e44386c48",
+      "name": "⚙️ Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        -576,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.twitter.com/2/users/{{ $node['⚙️ Config'].json.twitterUserId }}/tweets",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "max_results",
+              "value": "={{ $node['⚙️ Config'].json.postsPerPlatform }}"
+            },
+            {
+              "name": "tweet.fields",
+              "value": "id,text,created_at,public_metrics,entities,attachments"
+            },
+            {
+              "name": "start_time",
+              "value": "={{ new Date(Date.now() - parseInt($node['⚙️ Config'].json.lookbackDays) * 24 * 60 * 60 * 1000).toISOString() }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "f3429a45-f9dc-4f34-a12f-55e7016a8c25",
+      "name": "🐦 Fetch Twitter Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -96,
+        -208
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.instagram.com/{{ $node['⚙️ Config'].json.instagramUserId }}/media",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "fields",
+              "value": "id,caption,media_type,timestamp,like_count,comments_count,permalink,thumbnail_url"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $node['⚙️ Config'].json.postsPerPlatform }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "0604aa86-3af1-48fb-8b05-2d4d049c2201",
+      "name": "📸 Fetch Instagram Media",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -96,
+        192
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://open.tiktokapis.com/v2/video/list/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "0c3c7d40-56b2-4b38-a599-e76a02999ebb",
+      "name": "🎵 Fetch TikTok Videos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -96,
+        592
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "=https://api.linkedin.com/v2/ugcPosts?q=authors&authors=List({{ $node['⚙️ Config'].json.linkedinAuthorUrn }})&count={{ $node['⚙️ Config'].json.postsPerPlatform }}&sortBy=CREATED&fields=id,created,specificContent,socialDetail",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "LinkedIn-Version",
+              "value": "202304"
+            },
+            {
+              "name": "X-Restli-Protocol-Version",
+              "value": "2.0.0"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "17d14fac-a58e-450e-8efc-0ffabc92d8fe",
+      "name": "💼 Fetch LinkedIn Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -96,
+        992
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://www.googleapis.com/youtube/v3/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "part",
+              "value": "snippet,statistics"
+            },
+            {
+              "name": "channelId",
+              "value": "={{ $node['⚙️ Config'].json.youtubeChannelId }}"
+            },
+            {
+              "name": "maxResults",
+              "value": "50"
+            },
+            {
+              "name": "order",
+              "value": "date"
+            },
+            {
+              "name": "type",
+              "value": "video"
+            },
+            {
+              "name": "publishedAfter",
+              "value": "={{ new Date(Date.now() - parseInt($node['⚙️ Config'].json.lookbackDays) * 24 * 60 * 60 * 1000).toISOString() }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "9896fc28-4349-48b0-949e-b1c55066ce8a",
+      "name": "▶️ Fetch YouTube Videos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -96,
+        1392
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-tw",
+              "name": "_platform",
+              "value": "twitter",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "791c2dc9-4224-4d97-b4e7-e25205810ee8",
+      "name": "🏷️ Tag Twitter",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        144,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-ig",
+              "name": "_platform",
+              "value": "instagram",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "dfd2a46f-619b-4729-ae24-e227d901c1f4",
+      "name": "🏷️ Tag Instagram",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        144,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-tt",
+              "name": "_platform",
+              "value": "tiktok",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4f8f95ba-4179-45ca-9fe5-6e5ded804baa",
+      "name": "🏷️ Tag TikTok",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        144,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-li",
+              "name": "_platform",
+              "value": "linkedin",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ac8d038c-cef2-44f6-ba45-163389b79074",
+      "name": "🏷️ Tag LinkedIn",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        144,
+        992
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-yt",
+              "name": "_platform",
+              "value": "youtube",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3d246de5-5b09-47e6-9229-82e7452d83bd",
+      "name": "🏷️ Tag YouTube",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        144,
+        1392
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "06c2490a-9ed9-4e3e-b9f7-ba3256b97398",
+      "name": "🔀 Merge Social Data",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        384,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================================\n// Transform & Normalize Social Media Data\n// Converts all platform API responses into a unified format\n// sorted by engagement rate for AI analysis\n// ============================================================\n\nconst allItems = $input.all();\nconst normalizedPosts = [];\n\nfor (const item of allItems) {\n  const d = item.json;\n  const platform = d._platform;\n  if (!platform) continue;\n\n  switch (platform) {\n\n    case 'twitter': {\n      const tweets = d.data || [];\n      for (const t of tweets) {\n        const m = t.public_metrics || {};\n        const interactions = (m.like_count || 0) + (m.reply_count || 0) + (m.retweet_count || 0) + (m.quote_count || 0);\n        const impressions = Math.max(m.impression_count || 0, 1);\n        normalizedPosts.push({\n          platform: 'twitter',\n          id: t.id,\n          content: t.text || '',\n          hook: (t.text || '').split('\\n')[0].substring(0, 200),\n          created_at: t.created_at,\n          likes: m.like_count || 0,\n          comments: m.reply_count || 0,\n          shares: (m.retweet_count || 0) + (m.quote_count || 0),\n          views: m.impression_count || 0,\n          engagement_rate: parseFloat(((interactions / impressions) * 100).toFixed(4)),\n          url: `https://twitter.com/i/web/status/${t.id}`,\n          format: (t.text || '').length > 280 ? 'thread' : 'tweet'\n        });\n      }\n      break;\n    }\n\n    case 'instagram': {\n      const posts = d.data || [];\n      for (const p of posts) {\n        const likes = p.like_count || 0;\n        const comments = p.comments_count || 0;\n        // Instagram doesn't always return impressions in basic fields\n        // Use a conservative estimate of 10x engagement as a fallback\n        const impressions = Math.max(likes * 10 + comments * 5, 1);\n        normalizedPosts.push({\n          platform: 'instagram',\n          id: p.id,\n          content: p.caption || '',\n          hook: (p.caption || '').split('\\n')[0].substring(0, 200),\n          created_at: p.timestamp,\n          likes,\n          comments,\n          shares: 0,\n          views: impressions,\n          engagement_rate: parseFloat((((likes + comments) / impressions) * 100).toFixed(4)),\n          url: p.permalink || '',\n          format: p.media_type === 'VIDEO' ? 'reel'\n            : p.media_type === 'CAROUSEL_ALBUM' ? 'carousel'\n            : 'image'\n        });\n      }\n      break;\n    }\n\n    case 'tiktok': {\n      const videos = (d.data && d.data.videos) ? d.data.videos : (d.data || []);\n      for (const v of videos) {\n        const likes = v.like_count || 0;\n        const comments = v.comment_count || 0;\n        const shares = v.share_count || 0;\n        const views = Math.max(v.view_count || 0, 1);\n        normalizedPosts.push({\n          platform: 'tiktok',\n          id: v.id,\n          content: v.video_description || v.title || '',\n          hook: (v.video_description || v.title || '').split('\\n')[0].substring(0, 200),\n          created_at: new Date((v.create_time || 0) * 1000).toISOString(),\n          likes,\n          comments,\n          shares,\n          views,\n          engagement_rate: parseFloat((((likes + comments + shares) / views) * 100).toFixed(4)),\n          url: v.share_url || '',\n          format: 'video'\n        });\n      }\n      break;\n    }\n\n    case 'linkedin': {\n      const posts = d.elements || [];\n      for (const p of posts) {\n        const shareContent = p.specificContent?.['com.linkedin.ugc.ShareContent'] || {};\n        const body = shareContent.shareCommentary?.text || '';\n        const stats = p.socialDetail?.totalSocialActivityCounts || {};\n        const likes = stats.numLikes || 0;\n        const comments = stats.numComments || 0;\n        const impressions = Math.max(stats.numImpressions || 0, 1);\n        normalizedPosts.push({\n          platform: 'linkedin',\n          id: p.id,\n          content: body,\n          hook: body.split('\\n')[0].substring(0, 200),\n          created_at: new Date(p.created?.time || 0).toISOString(),\n          likes,\n          comments,\n          shares: stats.numShares || 0,\n          views: impressions,\n          engagement_rate: parseFloat((((likes + comments) / impressions) * 100).toFixed(4)),\n          url: `https://www.linkedin.com/feed/update/${p.id}`,\n          format: shareContent.shareMediaCategory === 'VIDEO' ? 'video'\n            : shareContent.shareMediaCategory === 'IMAGE' ? 'image'\n            : 'post'\n        });\n      }\n      break;\n    }\n\n    case 'youtube': {\n      const videos = d.items || [];\n      for (const v of videos) {\n        const stats = v.statistics || {};\n        const likes = parseInt(stats.likeCount || 0);\n        const comments = parseInt(stats.commentCount || 0);\n        const views = Math.max(parseInt(stats.viewCount || 0), 1);\n        const title = v.snippet?.title || '';\n        const description = (v.snippet?.description || '').substring(0, 500);\n        normalizedPosts.push({\n          platform: 'youtube',\n          id: v.id?.videoId || (typeof v.id === 'string' ? v.id : ''),\n          content: `${title}\\n\\n${description}`,\n          hook: title,\n          created_at: v.snippet?.publishedAt,\n          likes,\n          comments,\n          shares: 0,\n          views,\n          engagement_rate: parseFloat((((likes + comments) / views) * 100).toFixed(4)),\n          url: `https://youtube.com/watch?v=${v.id?.videoId || v.id}`,\n          format: 'video'\n        });\n      }\n      break;\n    }\n  }\n}\n\n// Sort by engagement rate descending — top performers first\nnormalizedPosts.sort((a, b) => b.engagement_rate - a.engagement_rate);\n\n// Build platform breakdown summary\nconst platformCounts = normalizedPosts.reduce((acc, p) => {\n  acc[p.platform] = (acc[p.platform] || 0) + 1;\n  return acc;\n}, {});\n\n// Select top 25 for AI analysis (keeps Claude prompt lean)\nconst top25 = normalizedPosts.slice(0, 25);\n\nconsole.log(`Normalized ${normalizedPosts.length} posts across ${Object.keys(platformCounts).length} platforms`);\n\nreturn [{\n  json: {\n    posts: normalizedPosts,\n    top25,\n    total: normalizedPosts.length,\n    platformCounts,\n    generatedAt: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "e354d957-35d6-4b54-afdc-7b050dfbcfbc",
+      "name": "🔄 Transform & Normalize",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the Anthropic API request body for performance analysis.\n// Sends top 25 posts + creator context to Claude for deep pattern extraction.\n\nconst data = $input.first().json;\nconst cfg = $('⚙️ Config').first().json;\nconst top25 = data.top25 || [];\n\n// Slim the post data to just what the model needs (saves tokens)\nconst postsForAnalysis = top25.map(p => ({\n  platform: p.platform,\n  hook: p.hook,\n  format: p.format,\n  engagement_rate_pct: p.engagement_rate,\n  likes: p.likes,\n  comments: p.comments,\n  shares: p.shares,\n  views: p.views\n}));\n\nconst prompt = `You are a world-class content strategist and copywriter who specializes in viral social media growth.\n\nCREATOR CONTEXT\n- Niche: ${cfg.niche}\n- Target Audience: ${cfg.targetAudience}\n- Primary Goal: ${cfg.contentGoal}\n- Total Posts Analyzed: ${data.total}\n- Platform Breakdown: ${JSON.stringify(data.platformCounts)}\n\nTOP ${top25.length} POSTS BY ENGAGEMENT RATE:\n${JSON.stringify(postsForAnalysis, null, 2)}\n\nAnalyze these posts and return a JSON object with EXACTLY this structure. Be specific and data-driven — cite actual hooks and patterns from the data:\n\n{\n  \"top_hook_patterns\": [\n    {\n      \"pattern_name\": \"e.g. The Uncomfortable Truth\",\n      \"description\": \"psychological reason this stops the scroll\",\n      \"example_hooks\": [\"exact hook 1 from the data\", \"exact hook 2\"],\n      \"avg_engagement_rate\": 0.00,\n      \"best_platform\": \"platform name\",\n      \"use_when\": \"specific trigger for using this hook\"\n    }\n  ],\n  \"top_content_formats\": [\n    {\n      \"format\": \"thread|carousel|reel|video|post|tweet\",\n      \"why_it_works\": \"mechanism of engagement\",\n      \"best_example_hook\": \"top hook using this format\",\n      \"avg_engagement_rate\": 0.00,\n      \"ideal_length\": \"e.g. 5-7 bullet points, 60-90 second video\"\n    }\n  ],\n  \"winning_themes\": [\n    {\n      \"theme\": \"theme name\",\n      \"description\": \"why this resonates with the specific audience\",\n      \"post_count\": 0,\n      \"avg_engagement_rate\": 0.00\n    }\n  ],\n  \"platform_insights\": {\n    \"twitter\": { \"what_works\": \"\", \"hook_style\": \"\", \"optimal_length\": \"\", \"posting_tip\": \"\" },\n    \"instagram\": { \"what_works\": \"\", \"hook_style\": \"\", \"optimal_format\": \"\", \"posting_tip\": \"\" },\n    \"tiktok\": { \"what_works\": \"\", \"hook_style\": \"\", \"content_style\": \"\", \"posting_tip\": \"\" },\n    \"linkedin\": { \"what_works\": \"\", \"hook_style\": \"\", \"tone\": \"\", \"posting_tip\": \"\" },\n    \"youtube\": { \"what_works\": \"\", \"title_pattern\": \"\", \"thumbnail_concept\": \"\", \"posting_tip\": \"\" }\n  },\n  \"audience_insights\": {\n    \"pain_points_that_drive_engagement\": [\"string\"],\n    \"desires_that_drive_engagement\": [\"string\"],\n    \"emotional_triggers\": [\"string\"],\n    \"language_patterns\": [\"exact phrases that appear in high-performing hooks\"]\n  },\n  \"content_gaps\": [\"topics your audience likely wants that your top posts haven't covered\"],\n  \"strategic_summary\": \"3-4 sentences: what's working, why, and the single biggest opportunity to improve performance\"\n}\n\nReturn ONLY the JSON object. No markdown fences, no explanation text outside the JSON.`;\n\nreturn [{\n  json: {\n    model: cfg.claudeModel || 'claude-opus-4-6',\n    max_tokens: 4096,\n    messages: [{ role: 'user', content: prompt }]\n  }\n}];"
+      },
+      "id": "3569087d-28c4-4bb8-93ee-84851fe8487f",
+      "name": "📋 Prepare Analyze Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "3367c0d9-5d0d-4bca-951c-c4f282d97229",
+      "name": "🤖 Analyze Top Performers",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1104,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "ae2b3917-c4d6-4d77-a360-6d983dfdd018",
+      "name": "🔍 Perplexity Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        -208
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "=https://oauth.reddit.com/r/{{ $node['⚙️ Config'].json.redditSubreddits }}/hot.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "limit",
+              "value": "25"
+            },
+            {
+              "name": "t",
+              "value": "week"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "ContentIntelligence/1.0 (by /u/yourusername)"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c80deb4d-e3e5-45c0-95fc-183dffcb7fef",
+      "name": "👽 Reddit Trends",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        192
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://api.twitter.com/2/trends/by/woeid/1",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "a7c66123-372f-4411-a017-54d1a6de1dc5",
+      "name": "📈 Fetch X Trending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        592
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://open.tiktokapis.com/v2/research/hashtag/query/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "fa7376c8-81f8-45aa-8e77-f7af2608b95c",
+      "name": "🎵 TikTok Trend Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        992
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google_trends"
+            },
+            {
+              "name": "q",
+              "value": "={{ $node['⚙️ Config'].json.googleTrendKeywords }}"
+            },
+            {
+              "name": "data_type",
+              "value": "TIMESERIES"
+            },
+            {
+              "name": "date",
+              "value": "today 1-m"
+            },
+            {
+              "name": "geo",
+              "value": "US"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "46d94154-a8c5-4bf1-ad2d-cb51d6e7bdfc",
+      "name": "🔎 Google Trends via SerpAPI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1344,
+        1392
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-px",
+              "name": "_source",
+              "value": "perplexity",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "168f9b41-b0f1-4f75-a5ec-c88f4bb23e3f",
+      "name": "🏷️ Tag Perplexity",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        1584,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-rd",
+              "name": "_source",
+              "value": "reddit",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d8352385-ce7a-4b98-9d20-e9e9d8d2795d",
+      "name": "🏷️ Tag Reddit",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        1584,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-xt",
+              "name": "_source",
+              "value": "x_trending",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "72198938-3c6a-42d7-a791-d43a352a1a68",
+      "name": "🏷️ Tag X Trending",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        1584,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-tkt",
+              "name": "_source",
+              "value": "tiktok_trends",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "0a8f1f0d-f8d3-4c2c-add5-1bd405020f3d",
+      "name": "🏷️ Tag TikTok Trends",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        1584,
+        992
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "tag-gt",
+              "name": "_source",
+              "value": "google_trends",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a7c947ea-5ab9-4e1d-9edc-c7d7abe462f6",
+      "name": "🏷️ Tag Google Trends",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [
+        1584,
+        1392
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "0ff8bba7-d1c6-4af4-bcb5-7c7d5484aa40",
+      "name": "🔀 Merge Trend Research",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1824,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the Anthropic API request for content idea generation.\n// Combines performance analysis output + all trend research into one prompt.\n\nconst cfg = $('⚙️ Config').first().json;\nconst trendItems = $input.all();\n\n// ---- Parse performance analysis from Claude ----\nlet analysis = {};\ntry {\n  const analyzeResponse = $('🤖 Analyze Top Performers').first().json;\n  const rawText = analyzeResponse.content?.[0]?.text || '';\n  // Try direct parse first, then strip markdown fences if needed\n  try {\n    analysis = JSON.parse(rawText);\n  } catch (e1) {\n    const match = rawText.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/) || rawText.match(/\\{[\\s\\S]*\\}/);\n    analysis = match ? JSON.parse(match[1] || match[0]) : {};\n  }\n} catch (e) {\n  console.log('Could not parse analysis response, continuing with empty analysis');\n  analysis = {};\n}\n\n// ---- Compile trend research from all 5 sources ----\nconst trends = {};\nfor (const item of trendItems) {\n  const d = item.json;\n  switch (d._source) {\n    case 'perplexity':\n      trends.perplexity = d.choices?.[0]?.message?.content || '';\n      break;\n    case 'reddit':\n      trends.reddit_hot = (d.data?.children || []).slice(0, 15).map(p => ({\n        title: p.data?.title,\n        score: p.data?.score,\n        subreddit: p.data?.subreddit,\n        num_comments: p.data?.num_comments\n      }));\n      break;\n    case 'x_trending':\n      trends.x_trending = d.data || [];\n      break;\n    case 'tiktok_trends':\n      trends.tiktok_hashtags = d.data?.hashtags || d;\n      break;\n    case 'google_trends':\n      trends.google_trends = {\n        keywords: cfg.googleTrendKeywords,\n        timeline: d.interest_over_time?.timeline_data?.slice(-4) || []\n      };\n      break;\n  }\n}\n\nconst prompt = `You are a world-class content strategist. Using our performance data and current trend research, generate exactly ${cfg.contentIdeasCount || 15} high-potential content ideas.\n\nCREATOR CONTEXT\n- Niche: ${cfg.niche}\n- Target Audience: ${cfg.targetAudience}\n- Content Goal: ${cfg.contentGoal}\n\nWHAT WORKS FOR THIS CREATOR (performance analysis)\n${JSON.stringify({\n  top_hooks: analysis.top_hook_patterns?.slice(0, 5),\n  winning_themes: analysis.winning_themes?.slice(0, 5),\n  pain_points: analysis.audience_insights?.pain_points_that_drive_engagement,\n  desires: analysis.audience_insights?.desires_that_drive_engagement,\n  language_patterns: analysis.audience_insights?.language_patterns,\n  content_gaps: analysis.content_gaps,\n  summary: analysis.strategic_summary\n}, null, 2)}\n\nCURRENT TREND INTELLIGENCE (this week)\n${JSON.stringify(trends, null, 2)}\n\nGenerate exactly ${cfg.contentIdeasCount || 15} content ideas. For each idea, write the hook as the ACTUAL first sentence/line of the content — not a description of the hook. Return ONLY this JSON object:\n\n{\n  \"weekly_theme\": \"string — single overarching theme that connects the best ideas this week\",\n  \"theme_rationale\": \"string — why this theme is timely and resonant right now\",\n  \"content_ideas\": [\n    {\n      \"id\": 1,\n      \"title\": \"string — compelling title for the content piece\",\n      \"hook\": \"string — THE ACTUAL FIRST LINE of the content (not a description — write the real hook)\",\n      \"sub_hook\": \"string — the second sentence that deepens the tension or promise\",\n      \"angle\": \"string — the unique perspective, contrarian take, or unexpected frame\",\n      \"format\": \"tweet|thread|carousel|reel|youtube-video|linkedin-post|tiktok-video\",\n      \"primary_platform\": \"string\",\n      \"secondary_platforms\": [\"string\"],\n      \"trending_connection\": \"string — specific trend/data point from our research this taps into\",\n      \"performance_basis\": \"string — which of our proven patterns this leverages and why it will work\",\n      \"outline\": [\"string — point 1\", \"string — point 2\", \"string — point 3\", \"string — point 4\", \"string — point 5\"],\n      \"cta\": \"string — exact call-to-action text\",\n      \"hook_pattern_used\": \"string — which top hook pattern from our analysis this uses\",\n      \"potential_score\": 8.5,\n      \"effort_level\": \"low|medium|high\",\n      \"estimated_time_minutes\": 30,\n      \"tags\": [\"string\"],\n      \"repurpose_ideas\": [\"string — how to repurpose across other platforms\"]\n    }\n  ],\n  \"priority_ideas\": [1, 3, 7],\n  \"quick_wins\": [2, 5],\n  \"batch_recording_sets\": [\n    {\n      \"theme\": \"string — batch session theme\",\n      \"idea_ids\": [1, 4, 8],\n      \"rationale\": \"string — why these work well to record together\"\n    }\n  ]\n}\n\nReturn ONLY the JSON object. No markdown fences. No text outside the JSON.`;\n\nreturn [{\n  json: {\n    model: cfg.claudeModel || 'claude-opus-4-6',\n    max_tokens: 8192,\n    messages: [{ role: 'user', content: prompt }]\n  }\n}];"
+      },
+      "id": "f42b63cf-e075-4a50-9cec-006a39854e77",
+      "name": "📋 Prepare Ideas Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2064,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.anthropic.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            },
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "c0d83749-b2b8-47ac-88a7-7bc9e43e3916",
+      "name": "💡 Generate Content Ideas",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2304,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Claude's content ideas response and prepare data for Notion\nconst claudeResponse = $input.first().json;\nconst cfg = $('⚙️ Config').first().json;\nconst rawContent = claudeResponse.content?.[0]?.text || '';\n\nlet ideasData = {};\ntry {\n  ideasData = JSON.parse(rawContent);\n} catch (e) {\n  // Try stripping markdown code fences if present\n  const match = rawContent.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/) || rawContent.match(/\\{[\\s\\S]*\\}/);\n  if (match) {\n    try {\n      ideasData = JSON.parse(match[1] || match[0]);\n    } catch (e2) {\n      throw new Error(`Could not parse Claude response as JSON: ${e2.message}\\n\\nRaw response: ${rawContent.substring(0, 500)}`);\n    }\n  } else {\n    throw new Error('No valid JSON found in Claude response');\n  }\n}\n\nconst now = new Date();\nconst weekStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });\nconst ideas = ideasData.content_ideas || [];\n\n// Build platform insights summary from Phase 2 analysis\nlet analysisSummary = 'See analysis output for details.';\ntry {\n  const analyzeResponse = $('🤖 Analyze Top Performers').first().json;\n  const analysisRaw = analyzeResponse.content?.[0]?.text || '';\n  const analysisData = JSON.parse(analysisRaw);\n  analysisSummary = analysisData.strategic_summary || analysisSummary;\n} catch (e) {\n  // Non-fatal — use fallback\n}\n\nconsole.log(`Parsed ${ideas.length} content ideas. Weekly theme: ${ideasData.weekly_theme}`);\n\nreturn [{\n  json: {\n    reportTitle: `📊 Content Intelligence Report — Week of ${weekStr}`,\n    weeklyTheme: ideasData.weekly_theme || 'Content Strategy Week',\n    themeRationale: ideasData.theme_rationale || '',\n    analysisSummary,\n    totalIdeas: ideas.length,\n    priorityIdeas: ideasData.priority_ideas || [],\n    quickWins: ideasData.quick_wins || [],\n    batchSets: ideasData.batch_recording_sets || [],\n    generatedAt: now.toISOString(),\n    ideas,\n    notionDatabaseId: cfg.notionDatabaseId,\n    niche: cfg.niche,\n    targetAudience: cfg.targetAudience\n  }\n}];"
+      },
+      "id": "961bbf43-65ac-40cf-8d18-c412a52e0f91",
+      "name": "📝 Format Notion Report Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2544,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "pageId": {
+          "__rl": true,
+          "mode": "url",
+          "value": ""
+        },
+        "title": "={{ $json.reportTitle }}",
+        "blockUi": {
+          "blockValues": [
+            {
+              "type": "callout"
+            },
+            {
+              "type": "heading_2",
+              "textContent": "🗓️ Weekly Theme"
+            },
+            {
+              "type": "quote"
+            },
+            {
+              "textContent": "={{ $json.themeRationale }}"
+            },
+            {
+              "type": "heading_2",
+              "textContent": "📊 Performance Intelligence Summary"
+            },
+            {
+              "textContent": "={{ $json.analysisSummary }}"
+            },
+            {
+              "type": "heading_2",
+              "textContent": "⭐ Priority Ideas This Week"
+            },
+            {
+              "textContent": "={{ `Ideas #${$json.priorityIdeas.join(', #')} — highest potential based on performance data + trend alignment` }}"
+            },
+            {
+              "type": "heading_2",
+              "textContent": "⚡ Quick Wins (Low Effort, High Impact)"
+            },
+            {
+              "textContent": "={{ `Ideas #${$json.quickWins.join(', #')} — can be produced and published within 30-60 minutes` }}"
+            },
+            {
+              "type": "heading_2",
+              "textContent": "🎬 Batch Recording Sets"
+            },
+            {
+              "textContent": "={{ $json.batchSets.map(s => `**${s.theme}** (Ideas ${s.idea_ids.join(', ')}): ${s.rationale}`).join('\\n\\n') }}"
+            },
+            {
+              "type": "divider"
+            },
+            {
+              "type": "heading_2",
+              "textContent": "={{ `💡 ${$json.totalIdeas} Content Ideas` }}"
+            },
+            {
+              "textContent": "Individual idea pages are linked below. ⭐ = Priority  ⚡ = Quick Win"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4442e924-e440-4cde-9c9f-1e2961284663",
+      "name": "📓 Create Notion Report Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        2784,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Split the ideas array into individual items.\n// n8n will run the downstream Notion node once per item,\n// creating one child page per content idea.\n\nconst reportData = $('📝 Format Notion Report Data').first().json;\nconst notionResult = $input.first().json;\n\n// The Notion API returns the created page's ID — we need this as the parent\nconst parentPageId = notionResult.id || '';\n\nif (!parentPageId) {\n  throw new Error('No parent page ID returned from Notion. Check Notion credentials and database ID.');\n}\n\nconst ideas = reportData.ideas || [];\nconst priorityIds = reportData.priorityIdeas || [];\nconst quickWinIds = reportData.quickWins || [];\n\nconsole.log(`Creating ${ideas.length} idea pages as children of page ${parentPageId}`);\n\n// Return one item per idea — each becomes one Notion child page\nreturn ideas.map(idea => ({\n  json: {\n    parentPageId,\n    ...idea,\n    isPriority: priorityIds.includes(idea.id),\n    isQuickWin: quickWinIds.includes(idea.id),\n    weeklyTheme: reportData.weeklyTheme,\n    niche: reportData.niche\n  }\n}));"
+      },
+      "id": "d0689e13-3895-44b5-ad7b-2126fd05c2a4",
+      "name": "🗂️ Prepare Idea Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3024,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "pageId": "={{ $json.parentPageId }}",
+        "title": "={{ `${$json.isPriority ? '⭐ ' : ''}${$json.isQuickWin ? '⚡ ' : ''}#${$json.id} — ${$json.title}` }}",
+        "blockUi": {
+          "blockValues": [
+            {
+              "type": "callout"
+            },
+            {
+              "type": "quote"
+            },
+            {
+              "type": "heading_3",
+              "textContent": "📐 Angle"
+            },
+            {
+              "textContent": "={{ $json.angle }}"
+            },
+            {
+              "type": "heading_3",
+              "textContent": "📋 Outline"
+            },
+            {
+              "type": "bulleted_list_item",
+              "textContent": "={{ $json.outline[0] || '' }}"
+            },
+            {
+              "type": "bulleted_list_item",
+              "textContent": "={{ $json.outline[1] || '' }}"
+            },
+            {
+              "type": "bulleted_list_item",
+              "textContent": "={{ $json.outline[2] || '' }}"
+            },
+            {
+              "type": "bulleted_list_item",
+              "textContent": "={{ $json.outline[3] || '' }}"
+            },
+            {
+              "type": "bulleted_list_item",
+              "textContent": "={{ $json.outline[4] || '' }}"
+            },
+            {
+              "type": "heading_3",
+              "textContent": "🔧 Production Details"
+            },
+            {
+              "textContent": "={{ `📣 CTA: ${$json.cta}` }}"
+            },
+            {
+              "textContent": "={{ `🎯 Primary Platform: ${$json.primary_platform}  |  Format: ${$json.format}` }}"
+            },
+            {
+              "textContent": "={{ `🔁 Also Post On: ${($json.secondary_platforms || []).join(', ')}` }}"
+            },
+            {
+              "textContent": "={{ `⏱ Effort: ${$json.effort_level}  |  Est. Time: ${$json.estimated_time_minutes} min` }}"
+            },
+            {
+              "textContent": "={{ `🎣 Hook Pattern: ${$json.hook_pattern_used}` }}"
+            },
+            {
+              "textContent": "={{ `⭐ Potential Score: ${$json.potential_score}/10` }}"
+            },
+            {
+              "type": "heading_3",
+              "textContent": "📈 Why This Will Work"
+            },
+            {
+              "textContent": "={{ $json.performance_basis }}"
+            },
+            {
+              "textContent": "={{ `🔥 Trending Connection: ${$json.trending_connection}` }}"
+            },
+            {
+              "type": "heading_3",
+              "textContent": "♻️ Repurpose Ideas"
+            },
+            {
+              "textContent": "={{ ($json.repurpose_ideas || []).join('\\n• ') }}"
+            },
+            {
+              "type": "heading_3",
+              "textContent": "🏷️ Tags"
+            },
+            {
+              "textContent": "={{ ($json.tags || []).map(t => `#${t}`).join('  ') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3d25716c-4d83-4691-957a-b239cfc75c93",
+      "name": "📄 Create Notion Idea Page",
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        3264,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collapse N idea-creation results (one per idea) back into\n// a single summary item for the Slack notification.\n\nconst items = $input.all();\nconst cfg = $('⚙️ Config').first().json;\nconst reportData = $('📝 Format Notion Report Data').first().json;\nconst parentPage = $('📓 Create Notion Report Page').first().json;\n\nconst successfulPages = items.filter(i => i.json.object === 'page' || i.json.id);\nconst notionUrl = parentPage.url || `https://notion.so/${(parentPage.id || '').replace(/-/g, '')}`;\n\nconsole.log(`Successfully created ${successfulPages.length}/${items.length} idea pages`);\n\nreturn [{\n  json: {\n    success: true,\n    reportTitle: reportData.reportTitle,\n    weeklyTheme: reportData.weeklyTheme,\n    ideasCreated: successfulPages.length,\n    ideasRequested: items.length,\n    notionUrl,\n    generatedAt: new Date().toISOString(),\n    slackMessage: `*✅ Weekly Content Intelligence Report Ready*\\n\\n*Theme:* ${reportData.weeklyTheme}\\n*Ideas Created:* ${successfulPages.length}/${items.length}\\n*Notion Report:* ${notionUrl}\\n\\n_Generated ${new Date().toLocaleString()}_`\n  }\n}];"
+      },
+      "id": "181b2260-594b-4bc9-8097-b304392ac555",
+      "name": "📊 Aggregate Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3504,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['⚙️ Config'].json.slackWebhookUrl }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "1efe4f57-fce9-4d98-9920-6940f4588716",
+      "name": "✅ Success Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3744,
+        592
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "c9b08620-62a0-4a53-9f87-fefee9159483",
+      "name": "🚨 Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        -816,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['⚙️ Config'].json.slackWebhookUrl }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "ce7ad89b-074f-4356-a255-2575b2da75c7",
+      "name": "🔴 Send Error Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -576,
+        1200
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "🕐 Weekly Trigger": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Config": {
+      "main": [
+        [
+          {
+            "node": "🐦 Fetch Twitter Posts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📸 Fetch Instagram Media",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🎵 Fetch TikTok Videos",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "💼 Fetch LinkedIn Posts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "▶️ Fetch YouTube Videos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🐦 Fetch Twitter Posts": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 Fetch Instagram Media": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎵 Fetch TikTok Videos": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag TikTok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💼 Fetch LinkedIn Posts": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "▶️ Fetch YouTube Videos": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag YouTube",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag Twitter": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Social Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag Instagram": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Social Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Merge Social Data": {
+      "main": [
+        [
+          {
+            "node": "🔄 Transform & Normalize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Transform & Normalize": {
+      "main": [
+        [
+          {
+            "node": "📋 Prepare Analyze Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Prepare Analyze Request": {
+      "main": [
+        [
+          {
+            "node": "🤖 Analyze Top Performers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 Analyze Top Performers": {
+      "main": [
+        [
+          {
+            "node": "🔍 Perplexity Research",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "👽 Reddit Trends",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📈 Fetch X Trending",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🎵 TikTok Trend Research",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🔎 Google Trends via SerpAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Perplexity Research": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag Perplexity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "👽 Reddit Trends": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag Reddit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📈 Fetch X Trending": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag X Trending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎵 TikTok Trend Research": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag TikTok Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔎 Google Trends via SerpAPI": {
+      "main": [
+        [
+          {
+            "node": "🏷️ Tag Google Trends",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag Perplexity": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Trend Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag Reddit": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Trend Research",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Merge Trend Research": {
+      "main": [
+        [
+          {
+            "node": "📋 Prepare Ideas Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Prepare Ideas Request": {
+      "main": [
+        [
+          {
+            "node": "💡 Generate Content Ideas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💡 Generate Content Ideas": {
+      "main": [
+        [
+          {
+            "node": "📝 Format Notion Report Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Format Notion Report Data": {
+      "main": [
+        [
+          {
+            "node": "📓 Create Notion Report Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📓 Create Notion Report Page": {
+      "main": [
+        [
+          {
+            "node": "🗂️ Prepare Idea Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗂️ Prepare Idea Items": {
+      "main": [
+        [
+          {
+            "node": "📄 Create Notion Idea Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Create Notion Idea Page": {
+      "main": [
+        [
+          {
+            "node": "📊 Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "✅ Success Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚨 Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "🔴 Send Error Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Social Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag YouTube": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Social Data",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag TikTok": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Social Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag TikTok Trends": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Trend Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag Google Trends": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Trend Research",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🏷️ Tag X Trending": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge Trend Research",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "template-version",
+  "meta": {
+    "instanceId": "YOUR_N8N_INSTANCE_ID"
+  },
+  "id": "WORKFLOW_ID",
+  "tags": []
+}

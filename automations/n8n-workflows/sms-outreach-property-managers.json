@@ -1,0 +1,1637 @@
+{
+  "name": "SMS Outreach Engine: Property Managers",
+  "nodes": [
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split",
+      "name": "Process One at a Time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a personalized cold SMS for this property manager.\n\nCONTACT:\n- Name: {{ $json['[\\'First Name\\']'] }}{{ $json['[\\'Last Name\\']'] }}\n- Title: {{ $json['[\\'Job Title\\']'] }}\n- Company: {{ $json['Company'] }}\n- Units managed:{{ $json['[\\'Door Count\\']'] }} \n- PMS: {{ $json['PMS']}}\n- Website: {{ $json['Domain']}}\n\nOFFER: $500 flat. Custom AI agent built for their specific processes. Handles tenant FAQs, drafts emails, pulls reports 24/7. This is not another SaaS product, you own the tool.\n\nSTEPS:\n1. Use the firecrawl tool to scrape https://{{ $json['Domain'] }} and learn about their business. Pick ONE specific detail to reference.\n2. Write the SMS following all rules in your system prompt.\n3. Use the format_sms tool to validate your draft.\n4. If format_sms returns issues, fix them and validate again.\n5. Return ONLY the final validated SMS text. Nothing else.",
+        "options": {
+          "systemMessage": "You write cold SMS messages that sound like a real person typed them on their phone. Not a marketer. Not a bot. A person.\n\nYou are writing for Jacob at Otter Labs. He helps property managers with AI and automation.\n\nYou have two tools:\n1. firecrawl — Scrapes a website. Pass the full URL including https://\n2. format_sms — Validates your SMS draft against all formatting rules. Always use this before returning your final message.\n\nIf firecrawl fails or the domain is empty, write the SMS using only the contact info provided. Do not mention the website or say you couldn't access it.\n\nReturn ONLY the final SMS text. No explanations, no quotes around it, nothing before or after.\n\nHARD RULES:\n- Never say \"no monthly fees\" or \"no ongoing fees\" or \"no recurring cost\". Say \"this is not another SaaS product, you own the tool.\"\n- Under 250 characters. Shorter is better. If you can say it in 150, do that.\n- No em dashes. Ever. Use periods or commas.\n- No semicolons.\n- No exclamation marks.\n- No emojis.\n- No hashtags.\n- No quotation marks around phrases for emphasis.\n- One short paragraph for the body. Then a blank line. Then the CTA question on its own line. This spacing matters.\n- Start with \"Hey [first name]\" or just their name. Never \"Hi\" or \"Hello\" or \"Dear\".\n- End with \"- Jacob\" on its own line. No period after it.\n\nBANNED WORDS AND PHRASES:\nleverage, streamline, optimize, revolutionize, game-changer, cutting-edge, best-in-class, synergy, holistic, robust, scalable, innovative, transform, unlock, empower, elevate, amplify, drive growth, pain points, touch base, circle back, deep dive, move the needle, low-hanging fruit, at the end of the day, reach out, loop in, take it to the next level, actionable insights, value proposition, paradigm shift\n\nALSO BANNED:\n- Calendar links or any URLs in the first message\n- Questions that start with \"What if\"\n- Starting with \"I noticed\" or \"I came across\" or \"I saw that\"\n- \"I help [type of business] do [thing]\" format\n- Any sentence that could appear in a LinkedIn DM from a stranger\n\nTONE:\n- Talk like you text your friends. But professional.\n- Be specific. Vague is spam. Specific is human.\n- Reference one real thing from their website.\n- Get to the point in the first sentence.\n- Do not oversell. Do not hype. State what you do plainly.\n\nCTA:\nEnd with a soft CTA question on its own line, separated by a blank line. Vary it every time:\n- Worth a quick chat?\n- Open to a quick call to see how we can help?\n- Any interest in seeing what this looks like?\n- Want me to show you how it works?\n- Down to hop on a quick call?\n- Open to hearing more?\n- Want to see what we could build for you?\n- Curious if this would help?\n\nOutput ONLY the text message. Nothing before it, nothing after it.\n\nYou have one tool:\n- format_sms — Validates your draft SMS against all rules. Use it before returning your final message.\n\nProcess: Write the SMS based on the contact info and website research provided. Then use format_sms to validate. Return the final SMS text only."
+        }
+      },
+      "id": "ai-agent",
+      "name": "AI Agent — Write SMS",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 400
+        }
+      },
+      "id": "claude",
+      "name": "Claude Sonnet 4",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        2176,
+        528
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CRED_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output || $input.first().json.text || '';\n\nlet sms = agentOutput.replace(/^[\"']|[\"']$/g, '').trim();\n\n// Get phone from the Process One at a Time node\nlet phone = $('Process One at a Time').first().json.phone || $('Process One at a Time').first().json.Phone || '';\nphone = phone.toString().replace(/[^0-9+]/g, '');\nif (!phone.startsWith('+')) {\n  if (!phone.startsWith('1')) phone = '1' + phone;\n  phone = '+' + phone;\n}\n\n// Alternate phone numbers\nconst batchIndex = $('Process One at a Time').first().json.batchIndex || 0;\nconst fromNumbers = ['+1XXXXXXXXXX', '+1YYYYYYYYYY'];\nconst fromNumber = fromNumbers[batchIndex % 2];\n\nreturn [{\n  json: {\n    sms_message: sms,\n    mobile_phone: phone,\n    from_number: fromNumber,\n    chars: sms.length\n  }\n}];"
+      },
+      "id": "extract",
+      "name": "Extract SMS Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphone.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"from\": \"{{ $json.from_number }}\", \"to\": [\"{{ $json.mobile_phone }}\"], \"content\": {{ JSON.stringify($json.sms_message) }}}",
+        "options": {}
+      },
+      "id": "send-sms",
+      "name": "Send SMS — OpenPhone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2768,
+        304
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_OPENPHONE_CRED_ID",
+          "name": "OpenPhone API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "wait",
+      "name": "Rate Limit — 3s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        3024,
+        304
+      ],
+      "webhookId": "00000000-0000-0000-0000-000000000001"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "PM SMS Outreach — All Cohorts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "$500 AI Agent",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        720,
+        320
+      ],
+      "id": "3d281c55-b007-41c1-9528-7b53f22c96ed",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        128,
+        320
+      ],
+      "id": "09a2390c-ca2b-4d1d-a586-eae438ab2ec6",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "phone, ['First Name'], ['Last Name'], ['Job Title'], Company, Domain, Email, PMS, ['Door Count']",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1632,
+        320
+      ],
+      "id": "c328d252-4af9-4def-bb6b-5414268ddcc8",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "url": "https://api.veriphone.io/v2/verify",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.Phone }}"
+            },
+            {
+              "name": "key",
+              "value": "YOUR_VERIPHONE_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        912,
+        320
+      ],
+      "id": "ab7cb63c-2116-4d52-be6f-b47972a2adba",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "422f07d5-7e5f-452d-9ece-dcaed42f5b0c",
+              "leftValue": "={{ $json.phone_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "536b9926-6c67-477f-beb8-d09a96d1b26d",
+              "leftValue": "={{ $json.phone_type }}",
+              "rightValue": "mobile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1328,
+        320
+      ],
+      "id": "34112d77-a637-4c1e-94f2-735f01e6ab78",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a6dd6f44-5a5b-4982-9b4c-4ee041721309",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "4e9cacde-69dd-4931-978f-812cf3a77efe",
+              "name": "phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "f8685c6a-0902-47ef-9bb1-53ced0391e3a",
+              "name": "phone_valid",
+              "value": "={{ $json.phone_valid }}",
+              "type": "boolean"
+            },
+            {
+              "id": "6e201c89-7cb1-498e-bf54-ab7621a3308a",
+              "name": "phone_type",
+              "value": "={{ $json.phone_type }}",
+              "type": "string"
+            },
+            {
+              "id": "01cf33e1-d542-4a0c-b328-a98d306e3ef9",
+              "name": "phone_region",
+              "value": "={{ $json.phone_region }}",
+              "type": "string"
+            },
+            {
+              "id": "c7839905-48e1-46b8-8fbe-8ad22c0cbd65",
+              "name": "local_number",
+              "value": "={{ $json.local_number }}",
+              "type": "string"
+            },
+            {
+              "id": "1c2bce35-8af3-48e9-b8c9-935aca9d13f8",
+              "name": "First Name",
+              "value": "={{ $('Get row(s) in sheet').item.json['First Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "26d738df-5441-459f-9d76-81b5994c8f58",
+              "name": "Last Name",
+              "value": "={{ $('Get row(s) in sheet').item.json['Last Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "65cb1493-a148-4236-b6c2-b39864fb8971",
+              "name": "Phone",
+              "value": "={{ $('Get row(s) in sheet').item.json.Phone }}",
+              "type": "string"
+            },
+            {
+              "id": "849eb4c1-91d3-4e18-a31a-a25efdd87f92",
+              "name": "Email",
+              "value": "={{ $('Get row(s) in sheet').item.json.Email }}",
+              "type": "string"
+            },
+            {
+              "id": "f9ddf966-3b60-46cb-9258-52383432a931",
+              "name": "Job Title",
+              "value": "={{ $('Get row(s) in sheet').item.json['Job Title'] }}",
+              "type": "string"
+            },
+            {
+              "id": "c1bfdb43-a732-4bc4-a780-7ba165afa14e",
+              "name": "Company",
+              "value": "={{ $('Get row(s) in sheet').item.json.Company }}",
+              "type": "string"
+            },
+            {
+              "id": "494fc490-3e32-4e46-ab1b-8c2346e1065e",
+              "name": "Domain",
+              "value": "={{ $('Get row(s) in sheet').item.json.Domain }}",
+              "type": "string"
+            },
+            {
+              "id": "080d1d41-f46c-447d-8e2d-341be472c243",
+              "name": "Door Count",
+              "value": "={{ $('Get row(s) in sheet').item.json['Door Count'] }}",
+              "type": "number"
+            },
+            {
+              "id": "55ff925b-7f2f-4112-a256-157dc97b47dc",
+              "name": "City",
+              "value": "={{ $('Get row(s) in sheet').item.json.City }}",
+              "type": "string"
+            },
+            {
+              "id": "0073722c-ee45-480d-b0f9-4991038dd5dd",
+              "name": "PMS",
+              "value": "={{ $('Get row(s) in sheet').item.json.PMS }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        320
+      ],
+      "id": "49ceb328-0e00-49f5-86ae-878f63bd56e1",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "=https://{{ $json.Domain }}",
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawlTool",
+      "typeVersion": 1,
+      "position": [
+        2496,
+        528
+      ],
+      "id": "cb462dcf-7987-4710-be5c-0c65345042e4",
+      "name": "Scrape a URL and get content as markdown or other formats in Firecrawl",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "YOUR_FIRECRAWL_CRED_ID",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Validates an SMS draft against formatting rules. Input should be the draft SMS text. Returns APPROVED if it passes or lists the issues to fix.",
+        "jsCode": "const draft = query;\n\nconst banned = ['leverage','streamline','optimize','revolutionize','game-changer','cutting-edge','best-in-class','synergy','holistic','robust','scalable','innovative','transform','unlock','empower','elevate','amplify','drive growth','pain points','touch base','circle back','deep dive','move the needle','low-hanging fruit','at the end of the day','reach out','loop in','take it to the next level','actionable insights','value proposition','paradigm shift','no monthly fees','no ongoing fees','no recurring cost'];\n\nlet issues = [];\nconst lower = draft.toLowerCase();\n\nfor (const w of banned) {\n  if (lower.includes(w)) issues.push('Contains banned phrase: ' + w);\n}\n\nif (draft.includes('—')) issues.push('Contains em dash');\nif (draft.includes(';')) issues.push('Contains semicolon');\nif (draft.includes('!')) issues.push('Contains exclamation mark');\nif (draft.length > 400) issues.push('Over 400 chars: ' + draft.length);\nif (draft.length > 250) issues.push('Over 250 chars preferred: ' + draft.length + '. Try to shorten.');\nif (draft.startsWith('Hi ') || draft.startsWith('Hello ') || draft.startsWith('Dear ')) issues.push('Bad greeting — use Hey or just the name');\nif (!draft.includes('- Jacob')) issues.push('Missing \"- Jacob\" sign-off');\n\nif (issues.length > 0) {\n  return 'ISSUES FOUND — fix these and try again: ' + issues.join('. ');\n}\n\nreturn 'SMS APPROVED (' + draft.length + ' chars)';"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2368,
+        512
+      ],
+      "id": "de153b76-34fa-43aa-ae4a-55de93d71a0c",
+      "name": "Format & Validate SMS"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "3da5111c-14f9-43b4-9145-b9ff30c77578",
+      "name": "Process One at a Time1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1808,
+        1248
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a personalized cold SMS for this property manager.\n\nCONTACT:\n- Name: {{ $json['First Name'] }} {{ $json['Last Name'] }}\n- Title: {{ $json['Job Title'] || 'Unknown' }}\n- Company: {{ $json['Company'] }}\n- City: {{ $json['City'] || 'Unknown' }}, {{ $json['State'] || 'Unknown' }}\n- Units managed: {{ $json['Door Count'] || 'Unknown' }}\n- PMS: {{ $json['PMS'] || 'None' }}\n- Website: {{ $json['Domain'] || 'none' }}\n\nOFFER: Done-for-you automation builds. We look at how your team operates day to day and build custom automations that eliminate the repetitive stuff. Guest messaging, cleaning coordination, maintenance routing, owner reporting. $500 flat per automation, you own it. This is not another SaaS product, you own the tool.\nTONE: Friendly, practical, no-nonsense. These are hands-on operators who are probably doing everything manually. Speak to the pain of doing things by hand.\n\nSTEPS:\n1. Use the firecrawl tool to scrape https://{{ $json['Domain'] }} and learn about their business. Pick ONE specific detail to reference.\n2. Write the SMS following all rules in your system prompt.\n3. Use the format_sms tool to validate your draft.\n4. If format_sms returns issues, fix them and validate again.\n5. Return ONLY the final validated SMS text. Nothing else.",
+        "options": {
+          "systemMessage": "You write cold SMS messages that sound like a real person typed them on their phone. Not a marketer. Not a bot. A person.\n\nYou are writing for Jacob at Abode Automations. He helps property managers with AI and automation.\n\nYou have two tools:\n1. firecrawl — Scrapes a website. Pass the full URL including https://\n2. format_sms — Validates your SMS draft against all formatting rules. Always use this before returning your final message.\n\nIf firecrawl fails or the domain is empty, write the SMS using only the contact info provided. Do not mention the website or say you couldn't access it.\n\nReturn ONLY the final SMS text. No explanations, no quotes around it, nothing before or after.\n\nHARD RULES:\n- Never say \"no monthly fees\" or \"no ongoing fees\" or \"no recurring cost\". Say \"this is not another SaaS product, you own the tool.\"\n- Under 250 characters. Shorter is better. If you can say it in 150, do that.\n- No em dashes. Ever. Use periods or commas.\n- No semicolons.\n- No exclamation marks.\n- No emojis.\n- No hashtags.\n- No quotation marks around phrases for emphasis.\n- One short paragraph for the body. Then a blank line. Then the CTA question on its own line. This spacing matters.\n- Start with \"Hey [first name]\" or just their name. Never \"Hi\" or \"Hello\" or \"Dear\".\n- End with \"- Jacob\" on its own line. No period after it.\n\nBANNED WORDS AND PHRASES:\nleverage, streamline, optimize, revolutionize, game-changer, cutting-edge, best-in-class, synergy, holistic, robust, scalable, innovative, transform, unlock, empower, elevate, amplify, drive growth, pain points, touch base, circle back, deep dive, move the needle, low-hanging fruit, at the end of the day, reach out, loop in, take it to the next level, actionable insights, value proposition, paradigm shift\n\nALSO BANNED:\n- Calendar links or any URLs in the first message\n- Questions that start with \"What if\"\n- Starting with \"I noticed\" or \"I came across\" or \"I saw that\"\n- \"I help [type of business] do [thing]\" format\n- Any sentence that could appear in a LinkedIn DM from a stranger\n\nTONE:\n- Talk like you text your friends. But professional.\n- Be specific. Vague is spam. Specific is human.\n- Reference one real thing from their website.\n- Get to the point in the first sentence.\n- Do not oversell. Do not hype. State what you do plainly.\n\nCTA:\nEnd with a soft CTA question on its own line, separated by a blank line. Vary it every time:\n- Worth a quick chat?\n- Open to a quick call to see how we can help?\n- Any interest in seeing what this looks like?\n- Want me to show you how it works?\n- Down to hop on a quick call?\n- Open to hearing more?\n- Want to see what we could build for you?\n- Curious if this would help?\n\nOutput ONLY the text message. Nothing before it, nothing after it.\n\nYou have one tool:\n- format_sms — Validates your draft SMS against all rules. Use it before returning your final message.\n\nProcess: Write the SMS based on the contact info and website research provided. Then use format_sms to validate. Return the final SMS text only."
+        }
+      },
+      "id": "014b62ca-b1ec-4204-b7f7-0df17468e816",
+      "name": "AI Agent — Write SMS1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        2096,
+        1232
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 400
+        }
+      },
+      "id": "37f2c2e5-f9df-43c5-89cc-83c0288920c1",
+      "name": "Claude Sonnet ",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        2064,
+        1456
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CRED_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output || $input.first().json.text || '';\n\nlet sms = agentOutput.replace(/^[\"']|[\"']$/g, '').trim();\n\n// Get phone from the Process One at a Time node\nlet phone = $('Process One at a Time1').first().json.phone || $('Process One at a Time1').first().json.Phone || '';\nphone = phone.toString().replace(/[^0-9+]/g, '');\nif (!phone.startsWith('+')) {\n  if (!phone.startsWith('1')) phone = '1' + phone;\n  phone = '+' + phone;\n}\n\n// Alternate phone numbers\nconst batchIndex = $('Process One at a Time1').first().json.batchIndex || 0;\nconst fromNumbers = ['+1XXXXXXXXXX', '+1YYYYYYYYYY'];\nconst fromNumber = fromNumbers[batchIndex % 2];\n\nreturn [{\n  json: {\n    sms_message: sms,\n    mobile_phone: phone,\n    from_number: fromNumber,\n    chars: sms.length\n  }\n}];"
+      },
+      "id": "55c0c43b-833d-4787-a43a-c222a40b8fd8",
+      "name": "Extract SMS Message1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2416,
+        1232
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphone.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"from\": \"{{ $json.from_number }}\", \"to\": [\"{{ $json.mobile_phone }}\"], \"content\": {{ JSON.stringify($json.sms_message) }}}",
+        "options": {}
+      },
+      "id": "50a703d9-462c-4b88-a944-0aed55057fb7",
+      "name": "Send SMS — OpenPhone1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2656,
+        1232
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_OPENPHONE_CRED_ID",
+          "name": "OpenPhone API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "40d59f61-fb2c-490f-a386-22f7897f8782",
+      "name": "Rate Limit — 3s1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2912,
+        1232
+      ],
+      "webhookId": "00000000-0000-0000-0000-000000000002"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "PM SMS Outreach — All Cohorts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1006656695,
+          "mode": "list",
+          "cachedResultName": "DFY Automations",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=1006656695"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        608,
+        1248
+      ],
+      "id": "96a11e9a-95fb-4759-9ba5-e6c0cfb8f323",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "phone, ['First Name'], ['Last Name'], ['Job Title'], Company, Domain, Email, PMS, ['Door Count']",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1520,
+        1248
+      ],
+      "id": "eed95d77-9fb6-4593-9053-bf81e6fa72be",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "url": "https://api.veriphone.io/v2/verify",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.Phone }}"
+            },
+            {
+              "name": "key",
+              "value": "YOUR_VERIPHONE_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        1248
+      ],
+      "id": "7e39948e-5839-43bd-b459-bc04502fb201",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "422f07d5-7e5f-452d-9ece-dcaed42f5b0c",
+              "leftValue": "={{ $json.phone_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "536b9926-6c67-477f-beb8-d09a96d1b26d",
+              "leftValue": "={{ $json.phone_type }}",
+              "rightValue": "mobile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1216,
+        1248
+      ],
+      "id": "8180586a-b084-4499-8ee9-39a051cc9934",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a6dd6f44-5a5b-4982-9b4c-4ee041721309",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "4e9cacde-69dd-4931-978f-812cf3a77efe",
+              "name": "phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "f8685c6a-0902-47ef-9bb1-53ced0391e3a",
+              "name": "phone_valid",
+              "value": "={{ $json.phone_valid }}",
+              "type": "boolean"
+            },
+            {
+              "id": "6e201c89-7cb1-498e-bf54-ab7621a3308a",
+              "name": "phone_type",
+              "value": "={{ $json.phone_type }}",
+              "type": "string"
+            },
+            {
+              "id": "01cf33e1-d542-4a0c-b328-a98d306e3ef9",
+              "name": "phone_region",
+              "value": "={{ $json.phone_region }}",
+              "type": "string"
+            },
+            {
+              "id": "c7839905-48e1-46b8-8fbe-8ad22c0cbd65",
+              "name": "local_number",
+              "value": "={{ $json.local_number }}",
+              "type": "string"
+            },
+            {
+              "id": "1c2bce35-8af3-48e9-b8c9-935aca9d13f8",
+              "name": "First Name",
+              "value": "={{ $('Get row(s) in sheet1').item.json['First Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "26d738df-5441-459f-9d76-81b5994c8f58",
+              "name": "Last Name",
+              "value": "={{ $('Get row(s) in sheet1').item.json['Last Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "65cb1493-a148-4236-b6c2-b39864fb8971",
+              "name": "Phone",
+              "value": "={{ $('Get row(s) in sheet1').item.json.Phone }}",
+              "type": "string"
+            },
+            {
+              "id": "849eb4c1-91d3-4e18-a31a-a25efdd87f92",
+              "name": "Email",
+              "value": "={{ $('Get row(s) in sheet1').item.json.Email }}",
+              "type": "string"
+            },
+            {
+              "id": "f9ddf966-3b60-46cb-9258-52383432a931",
+              "name": "Job Title",
+              "value": "={{ $('Get row(s) in sheet1').item.json['Job Title'] }}",
+              "type": "string"
+            },
+            {
+              "id": "c1bfdb43-a732-4bc4-a780-7ba165afa14e",
+              "name": "Company",
+              "value": "={{ $('Get row(s) in sheet1').item.json.Company }}",
+              "type": "string"
+            },
+            {
+              "id": "494fc490-3e32-4e46-ab1b-8c2346e1065e",
+              "name": "Domain",
+              "value": "={{ $('Get row(s) in sheet1').item.json.Domain }}",
+              "type": "string"
+            },
+            {
+              "id": "080d1d41-f46c-447d-8e2d-341be472c243",
+              "name": "Door Count",
+              "value": "={{ $('Get row(s) in sheet1').item.json['Door Count'] }}",
+              "type": "number"
+            },
+            {
+              "id": "55ff925b-7f2f-4112-a256-157dc97b47dc",
+              "name": "City",
+              "value": "={{ $('Get row(s) in sheet1').item.json.City }}",
+              "type": "string"
+            },
+            {
+              "id": "0073722c-ee45-480d-b0f9-4991038dd5dd",
+              "name": "PMS",
+              "value": "={{ $('Get row(s) in sheet1').item.json.PMS }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1008,
+        1248
+      ],
+      "id": "ff71db71-9b2f-4a0e-9278-a0aee967c3e5",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "=https://{{ $json.Domain }}",
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawlTool",
+      "typeVersion": 1,
+      "position": [
+        2384,
+        1456
+      ],
+      "id": "1527f558-29e3-466b-9661-1f2c72f1a318",
+      "name": "Scrape a URL and get content as markdown or other formats in Firecrawl1",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "YOUR_FIRECRAWL_CRED_ID",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Validates an SMS draft against formatting rules. Input should be the draft SMS text. Returns APPROVED if it passes or lists the issues to fix.",
+        "jsCode": "const draft = query;\n\nconst banned = ['leverage','streamline','optimize','revolutionize','game-changer','cutting-edge','best-in-class','synergy','holistic','robust','scalable','innovative','transform','unlock','empower','elevate','amplify','drive growth','pain points','touch base','circle back','deep dive','move the needle','low-hanging fruit','at the end of the day','reach out','loop in','take it to the next level','actionable insights','value proposition','paradigm shift','no monthly fees','no ongoing fees','no recurring cost'];\n\nlet issues = [];\nconst lower = draft.toLowerCase();\n\nfor (const w of banned) {\n  if (lower.includes(w)) issues.push('Contains banned phrase: ' + w);\n}\n\nif (draft.includes('—')) issues.push('Contains em dash');\nif (draft.includes(';')) issues.push('Contains semicolon');\nif (draft.includes('!')) issues.push('Contains exclamation mark');\nif (draft.length > 400) issues.push('Over 400 chars: ' + draft.length);\nif (draft.length > 250) issues.push('Over 250 chars preferred: ' + draft.length + '. Try to shorten.');\nif (draft.startsWith('Hi ') || draft.startsWith('Hello ') || draft.startsWith('Dear ')) issues.push('Bad greeting — use Hey or just the name');\nif (!draft.includes('- Jacob')) issues.push('Missing \"- Jacob\" sign-off');\n\nif (issues.length > 0) {\n  return 'ISSUES FOUND — fix these and try again: ' + issues.join('. ');\n}\n\nreturn 'SMS APPROVED (' + draft.length + ' chars)';"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2256,
+        1440
+      ],
+      "id": "f3077154-fa26-4896-9b7e-a53f3579698b",
+      "name": "Format & Validate SMS1"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "49f36a0d-82a8-4e67-ab29-270f9c8775b0",
+      "name": "Process One at a Time2",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1840,
+        -608
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a personalized cold SMS for this property manager.\n\nCONTACT:\n- Name: {{ $json['First Name'] }} {{ $json['Last Name'] }}\n- Title: {{ $json['Job Title'] || 'Unknown' }}\n- Company: {{ $json['Company'] }}\n- City: {{ $json['City'] || 'Unknown' }}, {{ $json['State'] || 'Unknown' }}\n- Units managed: {{ $json['Door Count'] || 'Unknown' }}\n- PMS: {{ $json['PMS'] || 'None' }}\n- Website: {{ $json['Domain'] || 'none' }}\n\nOFFER: AI consulting for property management companies at scale. We work with your team to identify where AI fits into your existing workflows, then build and deploy it. Not a software product. We sit down with your ops team, map the processes, and build AI tools custom to how you actually run things. Strategy session is free, builds start at $500 per tool. You own everything we build. This is not another SaaS product.\nTONE: Professional but not stiff. These are larger operators with 500+ doors or enterprise PMS. They have teams, processes, and budgets. Speak to efficiency at scale, not basic automation. Do not talk down to them.\n\nSTEPS:\n1. Use the firecrawl tool to scrape https://{{ $json['Domain'] }} and learn about their business. Pick ONE specific detail to reference.\n2. Write the SMS following all rules in your system prompt.\n3. Use the format_sms tool to validate your draft.\n4. If format_sms returns issues, fix them and validate again.\n5. Return ONLY the final validated SMS text. Nothing else.",
+        "options": {
+          "systemMessage": "You write cold SMS messages that sound like a real person typed them on their phone. Not a marketer. Not a bot. A person.\n\nYou are writing for Jacob at Otter Labs. He helps property managers with AI and automation.\n\nYou have two tools:\n1. firecrawl — Scrapes a website. Pass the full URL including https://\n2. format_sms — Validates your SMS draft against all formatting rules. Always use this before returning your final message.\n\nIf firecrawl fails or the domain is empty, write the SMS using only the contact info provided. Do not mention the website or say you couldn't access it.\n\nReturn ONLY the final SMS text. No explanations, no quotes around it, nothing before or after.\n\nHARD RULES:\n- Never say \"no monthly fees\" or \"no ongoing fees\" or \"no recurring cost\". Say \"this is not another SaaS product, you own the tool.\"\n- Under 250 characters. Shorter is better. If you can say it in 150, do that.\n- No em dashes. Ever. Use periods or commas.\n- No semicolons.\n- No exclamation marks.\n- No emojis.\n- No hashtags.\n- No quotation marks around phrases for emphasis.\n- One short paragraph for the body. Then a blank line. Then the CTA question on its own line. This spacing matters.\n- Start with \"Hey [first name]\" or just their name. Never \"Hi\" or \"Hello\" or \"Dear\".\n- End with \"- Jacob\" on its own line. No period after it.\n\nBANNED WORDS AND PHRASES:\nleverage, streamline, optimize, revolutionize, game-changer, cutting-edge, best-in-class, synergy, holistic, robust, scalable, innovative, transform, unlock, empower, elevate, amplify, drive growth, pain points, touch base, circle back, deep dive, move the needle, low-hanging fruit, at the end of the day, reach out, loop in, take it to the next level, actionable insights, value proposition, paradigm shift\n\nALSO BANNED:\n- Calendar links or any URLs in the first message\n- Questions that start with \"What if\"\n- Starting with \"I noticed\" or \"I came across\" or \"I saw that\"\n- \"I help [type of business] do [thing]\" format\n- Any sentence that could appear in a LinkedIn DM from a stranger\n\nTONE:\n- Talk like you text your friends. But professional.\n- Be specific. Vague is spam. Specific is human.\n- Reference one real thing from their website.\n- Get to the point in the first sentence.\n- Do not oversell. Do not hype. State what you do plainly.\n\nCTA:\nEnd with a soft CTA question on its own line, separated by a blank line. Vary it every time:\n- Worth a quick chat?\n- Open to a quick call to see how we can help?\n- Any interest in seeing what this looks like?\n- Want me to show you how it works?\n- Down to hop on a quick call?\n- Open to hearing more?\n- Want to see what we could build for you?\n- Curious if this would help?\n\nOutput ONLY the text message. Nothing before it, nothing after it.\n\nYou have one tool:\n- format_sms — Validates your draft SMS against all rules. Use it before returning your final message.\n\nProcess: Write the SMS based on the contact info and website research provided. Then use format_sms to validate. Return the final SMS text only."
+        }
+      },
+      "id": "bfc4d1da-7281-40be-b166-c99250c1f5cd",
+      "name": "AI Agent — Write SMS2",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        2128,
+        -624
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output || $input.first().json.text || '';\n\nlet sms = agentOutput.replace(/^[\"']|[\"']$/g, '').trim();\n\n// Get phone from the Process One at a Time node\nlet phone = $('Process One at a Time2').first().json.phone || $('Process One at a Time2').first().json.Phone || '';\nphone = phone.toString().replace(/[^0-9+]/g, '');\nif (!phone.startsWith('+')) {\n  if (!phone.startsWith('1')) phone = '1' + phone;\n  phone = '+' + phone;\n}\n\n// Alternate phone numbers\nconst batchIndex = $('Process One at a Time2').first().json.batchIndex || 0;\nconst fromNumbers = ['+1XXXXXXXXXX', '+1YYYYYYYYYY'];\nconst fromNumber = fromNumbers[batchIndex % 2];\n\nreturn [{\n  json: {\n    sms_message: sms,\n    mobile_phone: phone,\n    from_number: fromNumber,\n    chars: sms.length\n  }\n}];"
+      },
+      "id": "9ff280da-96a6-41df-abd9-ca896039bce0",
+      "name": "Extract SMS Message2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2448,
+        -624
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphone.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"from\": \"{{ $json.from_number }}\", \"to\": [\"{{ $json.mobile_phone }}\"], \"content\": {{ JSON.stringify($json.sms_message) }}}",
+        "options": {}
+      },
+      "id": "5d4df7ba-e057-48c8-b994-e0a2dfdd25c2",
+      "name": "Send SMS — OpenPhone2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2688,
+        -624
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_OPENPHONE_CRED_ID",
+          "name": "OpenPhone API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "9565b694-7969-458a-ada0-c883aa4885ea",
+      "name": "Rate Limit — 3s2",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2944,
+        -624
+      ],
+      "webhookId": "00000000-0000-0000-0000-000000000003"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "PM SMS Outreach — All Cohorts",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "$500 AI Agent",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        640,
+        -608
+      ],
+      "id": "6b66c9f2-990f-42f6-b3f6-21e3815104ed",
+      "name": "Get row(s) in sheet2",
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "phone, ['First Name'], ['Last Name'], ['Job Title'], Company, Domain, Email, PMS, ['Door Count']",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        -608
+      ],
+      "id": "b3f54c1e-df51-48f6-a648-ce038944f405",
+      "name": "Split Out2"
+    },
+    {
+      "parameters": {
+        "url": "https://api.veriphone.io/v2/verify",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "phone",
+              "value": "={{ $json.Phone }}"
+            },
+            {
+              "name": "key",
+              "value": "YOUR_VERIPHONE_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        -608
+      ],
+      "id": "0b8954e3-a9f1-46c6-ab4f-2dff90d6caf8",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "422f07d5-7e5f-452d-9ece-dcaed42f5b0c",
+              "leftValue": "={{ $json.phone_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "536b9926-6c67-477f-beb8-d09a96d1b26d",
+              "leftValue": "={{ $json.phone_type }}",
+              "rightValue": "mobile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1248,
+        -608
+      ],
+      "id": "bd391f69-2225-4ca7-b7c6-0f8be111c2b4",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a6dd6f44-5a5b-4982-9b4c-4ee041721309",
+              "name": "status",
+              "value": "={{ $json.status }}",
+              "type": "string"
+            },
+            {
+              "id": "4e9cacde-69dd-4931-978f-812cf3a77efe",
+              "name": "phone",
+              "value": "={{ $json.phone }}",
+              "type": "string"
+            },
+            {
+              "id": "f8685c6a-0902-47ef-9bb1-53ced0391e3a",
+              "name": "phone_valid",
+              "value": "={{ $json.phone_valid }}",
+              "type": "boolean"
+            },
+            {
+              "id": "6e201c89-7cb1-498e-bf54-ab7621a3308a",
+              "name": "phone_type",
+              "value": "={{ $json.phone_type }}",
+              "type": "string"
+            },
+            {
+              "id": "01cf33e1-d542-4a0c-b328-a98d306e3ef9",
+              "name": "phone_region",
+              "value": "={{ $json.phone_region }}",
+              "type": "string"
+            },
+            {
+              "id": "c7839905-48e1-46b8-8fbe-8ad22c0cbd65",
+              "name": "local_number",
+              "value": "={{ $json.local_number }}",
+              "type": "string"
+            },
+            {
+              "id": "1c2bce35-8af3-48e9-b8c9-935aca9d13f8",
+              "name": "First Name",
+              "value": "={{ $('Get row(s) in sheet2').item.json['First Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "26d738df-5441-459f-9d76-81b5994c8f58",
+              "name": "Last Name",
+              "value": "={{ $('Get row(s) in sheet2').item.json['Last Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "65cb1493-a148-4236-b6c2-b39864fb8971",
+              "name": "Phone",
+              "value": "={{ $('Get row(s) in sheet2').item.json.Phone }}",
+              "type": "string"
+            },
+            {
+              "id": "849eb4c1-91d3-4e18-a31a-a25efdd87f92",
+              "name": "Email",
+              "value": "={{ $('Get row(s) in sheet2').item.json.Email }}",
+              "type": "string"
+            },
+            {
+              "id": "f9ddf966-3b60-46cb-9258-52383432a931",
+              "name": "Job Title",
+              "value": "={{ $('Get row(s) in sheet2').item.json['Job Title'] }}",
+              "type": "string"
+            },
+            {
+              "id": "c1bfdb43-a732-4bc4-a780-7ba165afa14e",
+              "name": "Company",
+              "value": "={{ $('Get row(s) in sheet2').item.json.Company }}",
+              "type": "string"
+            },
+            {
+              "id": "494fc490-3e32-4e46-ab1b-8c2346e1065e",
+              "name": "Domain",
+              "value": "={{ $('Get row(s) in sheet2').item.json.Domain }}",
+              "type": "string"
+            },
+            {
+              "id": "080d1d41-f46c-447d-8e2d-341be472c243",
+              "name": "Door Count",
+              "value": "={{ $('Get row(s) in sheet2').item.json['Door Count'] }}",
+              "type": "number"
+            },
+            {
+              "id": "55ff925b-7f2f-4112-a256-157dc97b47dc",
+              "name": "City",
+              "value": "={{ $('Get row(s) in sheet2').item.json.City }}",
+              "type": "string"
+            },
+            {
+              "id": "0073722c-ee45-480d-b0f9-4991038dd5dd",
+              "name": "PMS",
+              "value": "={{ $('Get row(s) in sheet2').item.json.PMS }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1040,
+        -608
+      ],
+      "id": "88912a2f-d3bb-44bb-a351-cced4d03a0e2",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "description": "Validates an SMS draft against formatting rules. Input should be the draft SMS text. Returns APPROVED if it passes or lists the issues to fix.",
+        "jsCode": "const draft = query;\n\nconst banned = ['leverage','streamline','optimize','revolutionize','game-changer','cutting-edge','best-in-class','synergy','holistic','robust','scalable','innovative','transform','unlock','empower','elevate','amplify','drive growth','pain points','touch base','circle back','deep dive','move the needle','low-hanging fruit','at the end of the day','reach out','loop in','take it to the next level','actionable insights','value proposition','paradigm shift','no monthly fees','no ongoing fees','no recurring cost'];\n\nlet issues = [];\nconst lower = draft.toLowerCase();\n\nfor (const w of banned) {\n  if (lower.includes(w)) issues.push('Contains banned phrase: ' + w);\n}\n\nif (draft.includes('—')) issues.push('Contains em dash');\nif (draft.includes(';')) issues.push('Contains semicolon');\nif (draft.includes('!')) issues.push('Contains exclamation mark');\nif (draft.length > 400) issues.push('Over 400 chars: ' + draft.length);\nif (draft.length > 250) issues.push('Over 250 chars preferred: ' + draft.length + '. Try to shorten.');\nif (draft.startsWith('Hi ') || draft.startsWith('Hello ') || draft.startsWith('Dear ')) issues.push('Bad greeting — use Hey or just the name');\nif (!draft.includes('- Jacob')) issues.push('Missing \"- Jacob\" sign-off');\n\nif (issues.length > 0) {\n  return 'ISSUES FOUND — fix these and try again: ' + issues.join('. ');\n}\n\nreturn 'SMS APPROVED (' + draft.length + ' chars)';"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2288,
+        -416
+      ],
+      "id": "1398baa7-9de4-40bb-8a94-f7a41c8810b2",
+      "name": "Format & Validate SMS2"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "=https://{{ $json.Domain }}",
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawlTool",
+      "typeVersion": 1,
+      "position": [
+        2416,
+        -416
+      ],
+      "id": "b89a88c6-ac1e-46f7-8812-30d6c8e6b769",
+      "name": "Scrape a URL and get content as markdown or other formats in Firecrawl2",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "YOUR_FIRECRAWL_CRED_ID",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 400
+        }
+      },
+      "id": "d9a10fdb-791b-44a8-8e40-e42cadfc5575",
+      "name": "Claude Sonnet 5",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        2112,
+        -384
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CRED_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## $500",
+        "height": 528,
+        "width": 2592
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        672,
+        176
+      ],
+      "typeVersion": 1,
+      "id": "b7772ba6-c414-4788-a0ca-33a0a69bc589",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## DIY\n",
+        "height": 528,
+        "width": 2592
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        560,
+        1088
+      ],
+      "typeVersion": 1,
+      "id": "266b9109-7a70-4c12-966f-77e10f79a522",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## consulting\n\n",
+        "height": 528,
+        "width": 2592
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        592,
+        -736
+      ],
+      "typeVersion": 1,
+      "id": "37008788-88b3-43de-a306-eee3d39c48cc",
+      "name": "Sticky Note2"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Process One at a Time": {
+      "main": [
+        [
+          {
+            "node": "AI Agent — Write SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Claude Sonnet 4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — Write SMS",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent — Write SMS": {
+      "main": [
+        [
+          {
+            "node": "Extract SMS Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract SMS Message": {
+      "main": [
+        [
+          {
+            "node": "Send SMS — OpenPhone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS — OpenPhone": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit — 3s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit — 3s": {
+      "main": [
+        []
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get row(s) in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a URL and get content as markdown or other formats in Firecrawl": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Validate SMS": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process One at a Time1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent — Write SMS1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent — Write SMS1": {
+      "main": [
+        [
+          {
+            "node": "Extract SMS Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet ": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — Write SMS1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract SMS Message1": {
+      "main": [
+        [
+          {
+            "node": "Send SMS — OpenPhone1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS — OpenPhone1": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit — 3s1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a URL and get content as markdown or other formats in Firecrawl1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Validate SMS1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process One at a Time2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent — Write SMS2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent — Write SMS2": {
+      "main": [
+        [
+          {
+            "node": "Extract SMS Message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract SMS Message2": {
+      "main": [
+        [
+          {
+            "node": "Send SMS — OpenPhone2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS — OpenPhone2": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit — 3s2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out2": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Split Out2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Validate SMS2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS2",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet 5": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — Write SMS2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a URL and get content as markdown or other formats in Firecrawl2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS2",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "template-version",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_N8N_INSTANCE_ID"
+  },
+  "id": "WORKFLOW_ID",
+  "tags": []
+}

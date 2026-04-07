@@ -1,0 +1,3397 @@
+{
+  "name": "SMS Outreach Engine: Service providers",
+  "nodes": [
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "82e161b7-121d-41fe-b52f-0df8c38854fa",
+      "name": "Process One at a Time",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1648,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a personalized cold SMS for this service provider.\n\nCONTACT:\n- Company: {{ $json['Company'] }}\n- Website: {{ $json['Domain'] }}\n- Metro: {{ $json['Metro'] }}\n- Google Rating: {{ $json['Rating'] }}\n- Google Reviews: {{ $json['Reviews'] }}\n\nWe do NOT have the owner's name. Do not guess it.\n\nOFFER: Custom automation system built for their operations. Handles scheduling, dispatch, customer follow-up, review collection, and after-hours calls. Not a SaaS subscription, we build it and they own it.\n\nSTEPS:\n1. Use the firecrawl tool to scrape {{ $json['Domain'] }} and learn about their business. Determine their trade (HVAC, plumbing, electrical, etc.) and pick ONE specific detail to reference.\n2. Write the SMS following all rules in your system prompt. Match the hook to their trade.\n3. Use the format_sms tool to validate your draft.\n4. If format_sms returns issues, fix them and validate again.\n5. Return ONLY the final validated SMS text. Nothing else.",
+        "options": {
+          "systemMessage": "You write cold SMS messages that sound like a real person typed them on their phone. Not a marketer. Not a bot. A person.\n\nYou are writing for Jacob at Abode Automations. He builds custom automation systems for home service companies (HVAC, plumbing, electrical, etc.). Things like automated scheduling, dispatch, customer follow-up, review collection, and after-hours call handling.\n\nYou have two tools:\n1. firecrawl — Scrapes a website. Pass the full URL including https://\n2. format_sms — Validates your SMS draft against all formatting rules. Always use this before returning your final message.\n\nIMPORTANT: You do NOT have the owner's name. Do not guess a name. Start the message with the company name or a direct opener. Never use \"Hey there\" or \"Hey friend\" or any generic filler.\n\nIf firecrawl fails or the domain is empty, write the SMS using only the company name, metro, rating, and review count. Do not mention the website or say you could not access it.\n\nReturn ONLY the final SMS text. No explanations, no quotes around it, nothing before or after.\n\nHARD RULES:\n- Under 250 characters. Shorter is better. If you can say it in 150, do that.\n- No em dashes. Ever. Use periods or commas.\n- No semicolons.\n- No exclamation marks.\n- No emojis.\n- No hashtags.\n- No quotation marks around phrases for emphasis.\n- One short paragraph for the body. Then a blank line. Then the CTA question on its own line.\n- Since we have no name, start with the company name or a direct statement. Examples: \"[Company], quick question.\" or \"Saw [Company] has [X] reviews in [Metro].\" or just lead with the value prop.\n- End with \"- Jacob\" on its own line. No period after it.\n\nBANNED WORDS AND PHRASES:\nleverage, streamline, optimize, revolutionize, game-changer, cutting-edge, best-in-class, synergy, holistic, robust, scalable, innovative, transform, unlock, empower, elevate, amplify, drive growth, pain points, touch base, circle back, deep dive, move the needle, low-hanging fruit, at the end of the day, reach out, loop in, take it to the next level, actionable insights, value proposition, paradigm shift\n\nALSO BANNED:\n- Calendar links or any URLs in the first message\n- Questions that start with \"What if\"\n- Starting with \"I noticed\" or \"I came across\" or \"I saw that\"\n- \"I help [type of business] do [thing]\" format\n- Any sentence that could appear in a LinkedIn DM from a stranger\n- \"Hey there\" or any generic greeting without a name\n\nTONE:\n- Talk like you text your friends. But professional.\n- Be specific. Use their company name, metro, review count, rating.\n- These are blue-collar business owners. Talk straight. No jargon.\n- Reference one real thing from their website (a service, their service area, their team, how they describe themselves).\n- Get to the point in the first sentence.\n- Do not oversell. Do not hype. State what you do plainly.\n\nDETERMINE THE TRADE FROM THE WEBSITE. Use firecrawl to figure out if they are HVAC, plumbing, electrical, or another home service. Then pick the right hooks:\n\nHVAC:\n- Automated dispatch and tech routing\n- After-hours call answering that books appointments\n- Seasonal maintenance reminder campaigns\n- Automated estimate follow-ups\n- Review requests sent after every job\n\nPlumbing:\n- 24/7 emergency call intake and booking\n- Missed call recovery (AI calls back in under 60 seconds)\n- Automated review collection after jobs\n- Dispatch routing to nearest available tech\n\nElectrical:\n- Automated estimate follow-ups (biggest close rate lever)\n- Job completion follow-ups and review requests\n- Scheduling and confirmation texts to customers\n- After-hours call handling\n\nMatch the hook to what you find on their website.\n\nCTA:\nEnd with a soft CTA question on its own line. Vary it:\n- Worth a quick chat?\n- Open to a quick call?\n- Any interest in seeing what this looks like?\n- Want me to show you how it works?\n- Down to hop on a quick call?\n- Curious if this would help?\n\nOutput ONLY the text message. Nothing before, nothing after.\n\nProcess: Write SMS using contact info + website research. Use format_sms to validate. Return final SMS text only."
+        }
+      },
+      "id": "f60e23d3-49b6-4f52-ae45-2900c4989d76",
+      "name": "AI Agent — Write SMS",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 400
+        }
+      },
+      "id": "6c0d8169-b84e-41af-81fd-978681b788d3",
+      "name": "Claude Sonnet 4",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1904,
+        304
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CRED_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const agentOutput = $input.first().json.output || $input.first().json.text || '';\nlet sms = agentOutput.replace(/^[\"']|[\"']$/g, '').trim();\n\n// Phone comes from the HTTP pull node — already has +1\nconst phone = $('HTTP Request1').first().json.phone_number || '';\n\nreturn [{\n  json: {\n    sms_message: sms,\n    mobile_phone: phone,\n    from_number: '+1XXXXXXXXXX',\n    chars: sms.length\n  }\n}];"
+      },
+      "id": "d64b5907-c065-442d-bd11-b4990164ebd3",
+      "name": "Extract SMS Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphone.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"from\": \"{{ $json.from_number }}\", \"to\": [\"{{ $json.mobile_phone }}\"], \"content\": {{ JSON.stringify($json.sms_message) }}}",
+        "options": {}
+      },
+      "id": "aa6b088e-d442-4c6b-84a4-1ebd1a8d32bd",
+      "name": "Send SMS — OpenPhone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2592,
+        96
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_OPENPHONE_CRED_ID",
+          "name": "OpenPhone API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "amount": 3
+      },
+      "id": "08d16da3-01f7-4cb9-9cd0-60173072775b",
+      "name": "Rate Limit — 3s",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2848,
+        336
+      ],
+      "webhookId": "00000000-0000-0000-0000-000000000001"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Scrape Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 668084647,
+          "mode": "list",
+          "cachedResultName": "Test",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=668084647"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        320
+      ],
+      "id": "fb5ce314-2255-4f0b-8eb7-9e50f4b0b8a0",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "Company, Domain, Metro, Rating, Reviews",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1360,
+        112
+      ],
+      "id": "28894d4b-7f46-4610-9160-c15a2861a02e",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "422f07d5-7e5f-452d-9ece-dcaed42f5b0c",
+              "leftValue": "={{ $('HTTP Request1').item.json.is_valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "536b9926-6c67-477f-beb8-d09a96d1b26d",
+              "leftValue": "={{ $json.phone_type }}",
+              "rightValue": "mobile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "774f6da3-2107-4a2c-ac20-397f78e696c1",
+              "leftValue": "={{ $json['Activity score'] }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "9184e79b-96af-4d7f-9066-9fa64470a88b",
+              "leftValue": "={{ $json['Litigator check'] }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1168,
+        112
+      ],
+      "id": "df226569-ba96-47e4-9b8c-cd296b5925bb",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a6dd6f44-5a5b-4982-9b4c-4ee041721309",
+              "name": "status",
+              "value": "={{ $json.Valid }}",
+              "type": "string"
+            },
+            {
+              "id": "4e9cacde-69dd-4931-978f-812cf3a77efe",
+              "name": "phone",
+              "value": "={{ $('HTTP Request1').item.json.phone_number }}",
+              "type": "string"
+            },
+            {
+              "id": "6e201c89-7cb1-498e-bf54-ab7621a3308a",
+              "name": "phone_type",
+              "value": "={{ $('HTTP Request1').item.json.line_type }}",
+              "type": "string"
+            },
+            {
+              "id": "c1bfdb43-a732-4bc4-a780-7ba165afa14e",
+              "name": "Company",
+              "value": "={{ $('Get row(s) in sheet').item.json['Business Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "494fc490-3e32-4e46-ab1b-8c2346e1065e",
+              "name": "Domain",
+              "value": "={{ $('Get row(s) in sheet').item.json.Website }}",
+              "type": "string"
+            },
+            {
+              "id": "9e3be6b0-bc87-4538-8516-996b496db887",
+              "name": "Metro",
+              "value": "={{ $('Get row(s) in sheet').item.json.Metro }}",
+              "type": "string"
+            },
+            {
+              "id": "649e4898-1c97-4ab3-9e16-c54f1f80cd52",
+              "name": "Activity score",
+              "value": "={{ $('HTTP Request1').item.json.activity_score }}",
+              "type": "number"
+            },
+            {
+              "id": "3906d789-3c2a-4d36-9a9b-8ce04fe23fb8",
+              "name": "Litigator check",
+              "value": "={{ $json['Litigator check'] }}",
+              "type": "boolean"
+            },
+            {
+              "id": "19f93998-b071-4c91-a998-c2b4dc670b7f",
+              "name": "Valid",
+              "value": "={{ $json.Valid }}",
+              "type": "boolean"
+            },
+            {
+              "id": "18f7b0a5-99f7-4942-8033-a5761c4b7cd6",
+              "name": "Activity score",
+              "value": "={{ $json['Activity score'] }}",
+              "type": "number"
+            },
+            {
+              "id": "41f8b4db-4bb0-440d-a3e8-4b9588f5ae07",
+              "name": "Rating",
+              "value": "={{ $('Get row(s) in sheet').item.json.Rating }}",
+              "type": "number"
+            },
+            {
+              "id": "13642a2b-1ccd-414d-afc2-51658773623e",
+              "name": "Reviews",
+              "value": "={{ $('Get row(s) in sheet').item.json.Reviews }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        976,
+        112
+      ],
+      "id": "7c2143a2-c30c-4ace-b6ee-bcd956602072",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "={{ $json.Domain }}",
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawlTool",
+      "typeVersion": 1,
+      "position": [
+        2208,
+        288
+      ],
+      "id": "aaa18559-a93d-4459-8c3a-c0e2d9cfa39b",
+      "name": "Scrape a URL and get content as markdown or other formats in Firecrawl",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "YOUR_FIRECRAWL_CRED_ID",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Validates an SMS draft against formatting rules. Input should be the draft SMS text. Returns APPROVED if it passes or lists the issues to fix.",
+        "jsCode": "const draft = query;\n\nconst banned = ['leverage','streamline','optimize','revolutionize','game-changer','cutting-edge','best-in-class','synergy','holistic','robust','scalable','innovative','transform','unlock','empower','elevate','amplify','drive growth','pain points','touch base','circle back','deep dive','move the needle','low-hanging fruit','at the end of the day','reach out','loop in','take it to the next level','actionable insights','value proposition','paradigm shift','no monthly fees','no ongoing fees','no recurring cost'];\n\nlet issues = [];\nconst lower = draft.toLowerCase();\n\nfor (const w of banned) {\n  if (lower.includes(w)) issues.push('Contains banned phrase: ' + w);\n}\n\nif (draft.includes('—')) issues.push('Contains em dash');\nif (draft.includes(';')) issues.push('Contains semicolon');\nif (draft.includes('!')) issues.push('Contains exclamation mark');\nif (draft.length > 400) issues.push('Over 400 chars: ' + draft.length);\nif (draft.length > 250) issues.push('Over 250 chars preferred: ' + draft.length + '. Try to shorten.');\nif (draft.startsWith('Hi ') || draft.startsWith('Hello ') || draft.startsWith('Dear ')) issues.push('Bad greeting — use Hey or just the name');\nif (!draft.includes('- Jacob')) issues.push('Missing \"- Jacob\" sign-off');\n\nif (issues.length > 0) {\n  return 'ISSUES FOUND — fix these and try again: ' + issues.join('. ');\n}\n\nreturn 'SMS APPROVED (' + draft.length + ' chars)';"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2048,
+        304
+      ],
+      "id": "02acec60-7f13-4c13-89f5-ddd3e89246e7",
+      "name": "Format & Validate SMS"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Scrape Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 668084647,
+          "mode": "list",
+          "cachedResultName": "Test",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=668084647"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Verify phone number": "={{ $json.phone_number }}",
+            "Line type": "={{ $json.line_type }}",
+            "Valid": "={{ $json.is_valid }}",
+            "Carrier": "={{ $json.carrier }}",
+            "Activity score": "={{ $json.activity_score }}",
+            "Litigator check": "={{ $json.add_ons.litigator_checks['phone.is_litigator_risk'] }}"
+          },
+          "matchingColumns": [
+            "Verify phone number"
+          ],
+          "schema": [
+            {
+              "id": "Business Name",
+              "displayName": "Business Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Phone",
+              "displayName": "Business Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reviews",
+              "displayName": "Reviews",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Metro",
+              "displayName": "Metro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Name",
+              "displayName": "Owner Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Title",
+              "displayName": "Owner Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Email",
+              "displayName": "Owner Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Personal Email",
+              "displayName": "Owner Personal Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Owner Phone",
+              "displayName": "Owner Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Verify phone number",
+              "displayName": "Verify phone number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Line type",
+              "displayName": "Line type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mobile",
+              "displayName": "Mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valid",
+              "displayName": "Valid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carrier",
+              "displayName": "Carrier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity score",
+              "displayName": "Activity score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Litigator check",
+              "displayName": "Litigator check",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner LinkedIn",
+              "displayName": "Owner LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PMS Detected",
+              "displayName": "PMS Detected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Services",
+              "displayName": "Services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Estimated Units",
+              "displayName": "Estimated Units",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Emails Found",
+              "displayName": "Emails Found",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PDL Match",
+              "displayName": "PDL Match",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1168,
+        320
+      ],
+      "id": "8f384316-4a6d-497c-98b7-5a09994f32f5",
+      "name": "Update row in sheet",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.trestleiq.com/3.0/phone_intel?phone={{ $json['Verify phone number'] }}&add_ons=litigator_checks",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "accept",
+              "value": "application/json"
+            },
+            {
+              "name": "x-api-key",
+              "value": "YOUR_TRESTLE_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        976,
+        320
+      ],
+      "id": "2d1616e4-609f-4dc8-b5f0-cddaede33d97",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        688,
+        320
+      ],
+      "id": "5f681064-7b10-4169-852a-6a46a6fccaca",
+      "name": "Loop Over Items",
+      "executeOnce": false
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1360,
+        320
+      ],
+      "id": "8dec71b1-539f-401d-b82d-4dacebb35ae3",
+      "name": "Wait",
+      "webhookId": "00000000-0000-0000-0000-000000000002"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        96,
+        1600
+      ],
+      "id": "77ff4707-1cce-43b4-9034-c57b14f56252",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "67ff0465-cd67-4b83-93c6-595c3ac573af",
+      "name": "Process One at a Time1",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        976
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a personalized cold SMS for this service provider.\n\nCONTACT:\n- Company: {{ $json['Company'] }}\n- Website: {{ $json['Domain'] }}\n- Metro: {{ $json['Metro'] }}\n- Google Rating: {{ $json['Rating'] }}\n- Google Reviews: {{ $json['Reviews'] }}\n- Phone: {{ $json['phone'] }}\n\nWe do NOT have the owner's name. Do not guess it.\n\nOFFER:\nCustom automation system built for their operations. Handles scheduling, dispatch, customer follow-up, review collection, and after-hours calls. Not a SaaS subscription, we build it and they own it.\n\nSTEPS:\n1. FIRST, you MUST call the firecrawl tool with the URL: {{ $json['Domain'] }}. You MUST do this before writing anything. Read the scraped content. Determine their trade (HVAC, plumbing, electrical, etc.) and pick ONE specific detail to reference in your SMS.\n2. Write the SMS following all rules in your system prompt. Match the hook to their trade.\n3. Use the format_sms tool to validate your draft.\n4. If format_sms returns issues, fix them and validate again.\n5. Return ONLY the final approved SMS text. Nothing else. No validation notes, no commentary.",
+        "options": {
+          "systemMessage": "You write cold SMS messages that sound like a real person typed them on their phone. Not a marketer. Not a bot. A person.\n\nYou ARE Jacob. You are writing in first person as Jacob from Abode Automations. You build custom automation systems for home service companies (HVAC, plumbing, electrical, etc.). Things like automated scheduling, dispatch, customer follow-up, review collection, and after-hours call handling.\n\nYou have two tools:\n1. firecrawl — Scrapes a website. Pass the full URL including https://\n2. format_sms — Validates your SMS draft against formatting rules. Always run your draft through this before returning. If it returns issues, fix them and validate again. Only return the SMS after it says APPROVED.\n\nMANDATORY: You MUST call the firecrawl tool on the website URL before writing anything. This is not optional. Do not write the SMS until you have the firecrawl results. If you skip this step, the entire output is invalid. Call firecrawl first, read the results, then write.\n\nIMPORTANT: You do NOT have the owner's name. Do not guess a name. Never use \"Hey there\" or \"Hey friend\" or any generic filler.\n\nIf firecrawl fails or the domain is empty, write the SMS using only the company name, metro, rating, and review count. Do not mention the website or say you could not access it.\n\nReturn ONLY the raw SMS text. No explanations, no commentary, no validation notes, no quotes around it, nothing before or after. If your output contains anything other than the SMS itself, you have failed. Do not include validation results, reasoning, or commentary. Just the SMS.\n\nOPENING LINE RULES (CRITICAL — this determines if they read or delete):\nThe first line is everything. They see it in their notification preview. If it looks like marketing, they swipe it away.\n\nNEVER start with:\n- The company name (e.g. \"Plugged Electricians Atl, quick question\")\n- A statistic or percentage\n- \"I noticed\" or \"I came across\" or \"I saw that\"\n- \"Hey there\" or \"Hey friend\" or any generic filler\n- The offer or pitch\n\nALWAYS start with \"Hey\" and introduce yourself as Jacob naturally in the first line. Pick ONE of these opener patterns and adapt it:\n\n1. CASUAL RESEARCH HOOK — You were browsing and found them.\n   \"Hey, Jacob here. Was looking at your site and saw you do [specific service from website].\"\n   \"Hey it's Jacob, came across your Google page while looking at [trade] companies in [metro].\"\n\n2. SPECIFIC COMPLIMENT — Lead with what they're proud of.\n   \"Hey, Jacob here. [rating] stars with [review count] reviews in [metro] is legit.\"\n   \"Hey it's Jacob. [review count] reviews and a [rating] on Google, you guys are clearly doing good work out in [metro].\"\n\n3. RELATABLE PAIN AS A QUESTION — Make them nod.\n   \"Hey, Jacob here. Quick question, how do you handle calls when your guys are out on jobs?\"\n   \"Hey it's Jacob, random question. What happens when someone calls you after hours?\"\n\n4. PEER REFERENCE — Imply you're already in their world.\n   \"Hey, Jacob here. Been talking to a few [trade] companies in [metro] lately.\"\n   \"Hey it's Jacob, I work with a couple [trade] shops in [metro].\"\n\n5. DIRECT AND HONEST — Cut straight to it but sound human.\n   \"Hey, Jacob here. This might be random but I think I can help you book more jobs.\"\n   \"Hey it's Jacob. Saw your work online, got a quick idea that might help.\"\n\nIMPORTANT: Vary between \"Hey, Jacob here.\" and \"Hey it's Jacob,\" so they don't all sound identical. Mix it up.\n\nDo NOT end the message with \"- Jacob\" or any signature line. Your name is already in the opener.\n\nAfter the opener, the body should flow naturally. Do NOT drop a statistic right after the opener. If you use a stat, paraphrase it casually like a person would say it — \"most people just call the next guy\" instead of \"78% of customers go with the first company that responds.\"\n\nThe company name should appear in the body naturally, NOT as the first word of the message.\n\nHARD RULES:\n- Under 250 characters. Shorter is better. If you can say it in 150, do that.\n- No em dashes. Ever. Use periods or commas.\n- No semicolons.\n- No exclamation marks.\n- No emojis.\n- No hashtags.\n- No quotation marks around phrases for emphasis.\n- One short paragraph for the body. Then a blank line. Then the CTA question on its own line.\n- Do NOT end with a signature line. No \"- Jacob\" at the end. Your name is already in the opener.\n- Never mention \"AI\" or \"automation.\" Say \"system\" or \"tool\" instead.\n\nBANNED WORDS AND PHRASES:\nleverage, streamline, optimize, revolutionize, game-changer, cutting-edge, best-in-class, synergy, holistic, robust, scalable, innovative, transform, unlock, empower, elevate, amplify, drive growth, pain points, touch base, circle back, deep dive, move the needle, low-hanging fruit, at the end of the day, reach out, loop in, take it to the next level, actionable insights, value proposition, paradigm shift\n\nALSO BANNED:\n- Calendar links or any URLs in the first message\n- Questions that start with \"What if\"\n- \"I help [type of business] do [thing]\" format\n- Any sentence that could appear in a LinkedIn DM from a stranger\n\nTONE:\n- Talk like you text your friends. But professional.\n- Be specific. Use their company name, metro, review count, rating in the body naturally.\n- These are blue-collar business owners. Talk straight. No jargon.\n- Reference one real thing from their website (a service, their service area, their team, how they describe themselves).\n- Do not oversell. Do not hype. State what you do plainly.\n- Never drop a raw statistic. Paraphrase it like a person would say it in conversation.\n\nDETERMINE THE TRADE FROM THE WEBSITE. Use firecrawl to figure out if they are HVAC, plumbing, electrical, or another home service. Then pick the right hooks:\n\nHVAC:\n- Automated dispatch and tech routing\n- After-hours call answering that books appointments\n- Seasonal maintenance reminder campaigns\n- Automated estimate follow-ups\n- Review requests sent after every job\n\nPlumbing:\n- 24/7 emergency call intake and booking\n- Missed call recovery (calls back in under 60 seconds)\n- Automated review collection after jobs\n- Dispatch routing to nearest available tech\n\nElectrical:\n- Automated estimate follow-ups (biggest close rate lever)\n- Job completion follow-ups and review requests\n- Scheduling and confirmation texts to customers\n- After-hours call handling\n\nMatch the hook to what you find on their website.\n\nCTA: End with a soft CTA question on its own line. Vary it:\n- Worth a quick chat?\n- Open to a quick call?\n- Any interest in seeing what this looks like?\n- Want me to show you how it works?\n- Down to hop on a quick call?\n- Curious if this would help?\n\nOutput ONLY the text message. Nothing before, nothing after.\nProcess: Write SMS using contact info + website research. Validate with format_sms. Fix any issues. Return ONLY the final approved SMS text.\n\n"
+        }
+      },
+      "id": "3dc3049f-46f6-4d34-8118-97a1ab541f61",
+      "name": "AI Agent — Write SMS1",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 400
+        }
+      },
+      "id": "5ac03cd1-26b8-4e13-8ea7-fc351eb48b06",
+      "name": "Claude Sonnet ",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1904,
+        976
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CRED_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const agentOutput = $input.first().json.output || $input.first().json.text || '';\n  let sms = agentOutput.replace(/^[\"']|[\"']$/g, '').trim();\n\n  let phone = String($('Process One at a Time1').first().json.phone || '').replace(/[^0-9]/g, '');\n\n  if (phone && !phone.startsWith('+')) {\n    phone = '+' + (phone.startsWith('1') ? phone : '1' + phone);\n  }\n\n  return [{\n    json: {\n      sms_message: sms,\n      mobile_phone: phone,\n      from_number: '+1XXXXXXXXXX',\n      chars: sms.length,\n      request_body: {\n        from: '+1XXXXXXXXXX',\n        to: [phone],\n        content: sms\n      }\n    }\n  }];\n} catch (e) {\n  return [{\n    json: {\n      error: e.message,\n      input_keys: Object.keys($input.first().json)\n    }\n  }];\n}"
+      },
+      "id": "85bf3019-0dbc-4a13-affe-2611a7ec178e",
+      "name": "Extract SMS Message1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        768
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphone.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "from",
+              "value": "={{ $json.request_body.from }}"
+            },
+            {
+              "name": "to",
+              "value": "={{ [$json.request_body.to[0]] }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.request_body.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "810c1687-d975-41ff-b59c-49af4dfa886d",
+      "name": "Send SMS — OpenPhone1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2576,
+        768
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_OPENPHONE_CRED_ID",
+          "name": "OpenPhone API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "c3defdeb-cddf-45fa-bcbe-11665c57d3dd",
+      "name": "Rate Limit — 3s1",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2864,
+        1024
+      ],
+      "webhookId": "00000000-0000-0000-0000-000000000003"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Scrape Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Group 1: Leads (10-50)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        992
+      ],
+      "id": "d1bf4975-a98f-47b7-9b67-cf016a7f1080",
+      "name": "Get row(s) in sheet1",
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "Company, Domain, Metro, Rating, Reviews, phone",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        976
+      ],
+      "id": "7c13c78f-890d-4078-b199-e5ab6ddd2d49",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "422f07d5-7e5f-452d-9ece-dcaed42f5b0c",
+              "leftValue": "={{ $json.Valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "536b9926-6c67-477f-beb8-d09a96d1b26d",
+              "leftValue": "={{ $json.phone_type }}",
+              "rightValue": "mobile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "774f6da3-2107-4a2c-ac20-397f78e696c1",
+              "leftValue": "={{ $json['Activity score'] }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "9184e79b-96af-4d7f-9066-9fa64470a88b",
+              "leftValue": "={{ $json['Litigator check'] }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "545f1f16-a2a5-4833-955d-814d3248098a",
+              "leftValue": "={{ $('Get row(s) in sheet1').item.json.Sent }}",
+              "rightValue": "sent",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        864,
+        992
+      ],
+      "id": "423c0944-310d-46d8-afb5-f7293b179700",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a6dd6f44-5a5b-4982-9b4c-4ee041721309",
+              "name": "status",
+              "value": "={{ $json.Valid }}",
+              "type": "string"
+            },
+            {
+              "id": "4e9cacde-69dd-4931-978f-812cf3a77efe",
+              "name": "phone",
+              "value": "={{ $json['Verify phone number'] }}",
+              "type": "string"
+            },
+            {
+              "id": "6e201c89-7cb1-498e-bf54-ab7621a3308a",
+              "name": "phone_type",
+              "value": "={{ $json['Line type'] }}",
+              "type": "string"
+            },
+            {
+              "id": "c1bfdb43-a732-4bc4-a780-7ba165afa14e",
+              "name": "Company",
+              "value": "={{ $('Get row(s) in sheet1').item.json['Business Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "494fc490-3e32-4e46-ab1b-8c2346e1065e",
+              "name": "Domain",
+              "value": "={{ $('Get row(s) in sheet1').item.json.Website }}",
+              "type": "string"
+            },
+            {
+              "id": "9e3be6b0-bc87-4538-8516-996b496db887",
+              "name": "Metro",
+              "value": "={{ $('Get row(s) in sheet1').item.json.Metro }}",
+              "type": "string"
+            },
+            {
+              "id": "649e4898-1c97-4ab3-9e16-c54f1f80cd52",
+              "name": "Activity score",
+              "value": "={{ $json['Activity score'] }}",
+              "type": "number"
+            },
+            {
+              "id": "3906d789-3c2a-4d36-9a9b-8ce04fe23fb8",
+              "name": "Litigator check",
+              "value": "={{ $json['Litigator check'] }}",
+              "type": "boolean"
+            },
+            {
+              "id": "19f93998-b071-4c91-a998-c2b4dc670b7f",
+              "name": "Valid",
+              "value": "={{ $json.Valid }}",
+              "type": "boolean"
+            },
+            {
+              "id": "18f7b0a5-99f7-4942-8033-a5761c4b7cd6",
+              "name": "Activity score",
+              "value": "={{ $json['Activity score'] }}",
+              "type": "number"
+            },
+            {
+              "id": "41f8b4db-4bb0-440d-a3e8-4b9588f5ae07",
+              "name": "Rating",
+              "value": "={{ $('Get row(s) in sheet1').item.json.Rating }}",
+              "type": "number"
+            },
+            {
+              "id": "13642a2b-1ccd-414d-afc2-51658773623e",
+              "name": "Reviews",
+              "value": "={{ $('Get row(s) in sheet1').item.json.Reviews }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        992
+      ],
+      "id": "caa67dfc-cbac-48e8-8fc3-41cd4431ad36",
+      "name": "Edit Fields1"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "={{ $json.Domain }}",
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawlTool",
+      "typeVersion": 1,
+      "position": [
+        2208,
+        960
+      ],
+      "id": "1ebad434-da63-4316-ab29-d99f047f58ea",
+      "name": "Scrape a URL and get content as markdown or other formats in Firecrawl1",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "YOUR_FIRECRAWL_CRED_ID",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Validates an SMS draft against formatting rules. Input should be the draft SMS text. Returns APPROVED if it passes or lists the issues to fix.",
+        "jsCode": "const draft = query;\nconst banned = ['leverage','streamline','optimize','revolutionize','game-changer','cutting-edge','best-in-class','synergy','holistic','robust','scalable','innovative','transform','unlock','empower','elevate','amplify','drive growth','pain points','touch base','circle back','deep dive','move the needle','low-hanging fruit','at the end of the day','reach out','loop in','take it to the next level','actionable insights','value proposition','paradigm shift','no monthly fees','no ongoing fees','no recurring cost'];\nlet issues = [];\nconst lower = draft.toLowerCase();\nfor (const w of banned) {\n  if (lower.includes(w)) issues.push('Contains banned phrase: ' + w);\n}\nif (draft.includes('—')) issues.push('Contains em dash');\nif (draft.includes(';')) issues.push('Contains semicolon');\nif (draft.includes('!')) issues.push('Contains exclamation mark');\nif (draft.length > 400) issues.push('Over 400 chars: ' + draft.length);\nif (draft.length > 250) issues.push('Over 250 chars preferred: ' + draft.length + '. Try to shorten.');\nif (draft.startsWith('Hi ') || draft.startsWith('Hello ') || draft.startsWith('Dear ')) issues.push('Bad greeting — use Hey or just the name');\nif (!lower.startsWith('hey')) issues.push('Must start with Hey — opener should be conversational');\nif (issues.length > 0) {\n  return 'ISSUES FOUND — fix these and try again: ' + issues.join('. ');\n}\nreturn 'SMS APPROVED (' + draft.length + ' chars)';"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2048,
+        976
+      ],
+      "id": "6efe5def-fd63-4428-945e-077e30f6827f",
+      "name": "Format & Validate SMS1"
+    },
+    {
+      "parameters": {
+        "content": "## Automated process",
+        "height": 528,
+        "width": 2672
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        368,
+        48
+      ],
+      "typeVersion": 1,
+      "id": "c97012e3-ab58-4046-9878-434f66110064",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Automation offer",
+        "height": 528,
+        "width": 2672
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        416,
+        736
+      ],
+      "typeVersion": 1,
+      "id": "904003ef-616b-4648-b494-a08b3e1b0b90",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Scrape Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Group 1: Leads (10-50)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Business Name": "={{ $('Process One at a Time1').item.json.Company }}",
+            "Sent": "={{ $json.data.status }}"
+          },
+          "matchingColumns": [
+            "Business Name"
+          ],
+          "schema": [
+            {
+              "id": "Business Name",
+              "displayName": "Business Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Phone",
+              "displayName": "Business Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reviews",
+              "displayName": "Reviews",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Metro",
+              "displayName": "Metro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Name",
+              "displayName": "Owner Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Title",
+              "displayName": "Owner Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Email",
+              "displayName": "Owner Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Personal Email",
+              "displayName": "Owner Personal Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Phone",
+              "displayName": "Owner Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Verify phone number",
+              "displayName": "Verify phone number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Line type",
+              "displayName": "Line type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mobile",
+              "displayName": "Mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valid",
+              "displayName": "Valid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carrier",
+              "displayName": "Carrier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity score",
+              "displayName": "Activity score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Litigator check",
+              "displayName": "Litigator check",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sent",
+              "displayName": "Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner LinkedIn",
+              "displayName": "Owner LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PMS Detected",
+              "displayName": "PMS Detected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Services",
+              "displayName": "Services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Estimated Units",
+              "displayName": "Estimated Units",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Emails Found",
+              "displayName": "Emails Found",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PDL Match",
+              "displayName": "PDL Match",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2800,
+        768
+      ],
+      "id": "9af60b48-0d4d-4d08-9a2e-48368ae6ccf5",
+      "name": "Update row in sheet1",
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "ed7acded-23a2-454f-a6f9-135da8bf86ca",
+      "name": "Process One at a Time2",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1376,
+        1584
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a personalized cold SMS for this service provider.\n\nCONTACT:\n- Company: {{ $json['Company'] }}\n- Website: {{ $json['Domain'] }}\n- Metro: {{ $json['Metro'] }}\n- Google Rating: {{ $json['Rating'] }}\n- Google Reviews: {{ $json['Reviews'] }}\n- Phone: {{ $json['phone'] }}\n\nWe do NOT have the owner's name. Do not guess it.\n\nOFFER:\nMissed call recovery system. When a call goes unanswered, the system instantly texts back as the business, captures the caller's info (name, service needed, address, urgency), notifies the owner in real time, and can book the appointment directly. Works 24/7 including nights, weekends, and holidays. Setup takes 15 minutes. Starts at $297/month. Recovering 2-3 missed calls per month pays for the entire service.\n\nSTEPS:\n1. FIRST, you MUST call the firecrawl tool with the URL: {{ $json['Domain'] }}. You MUST do this before writing anything. Read the scraped content. Determine their trade (HVAC, plumbing, electrical, etc.) and pick ONE specific detail to reference in your SMS.\n2. Write the SMS following all rules in your system prompt. Match the hook to their trade.\n3. Use the format_sms tool to validate your draft.\n4. If format_sms returns issues, fix them and validate again.\n5. Return ONLY the final approved SMS text. Nothing else. No validation notes, no commentary.",
+        "options": {
+          "systemMessage": "You write cold SMS messages that sound like a real person typed them on their phone. Not a marketer. Not a bot. A person.\n\nYou ARE Jacob. You are writing in first person as Jacob from Abode Automations. You help home service companies stop losing jobs from missed calls. You set up a system that texts back every missed call instantly, captures the lead's info, and books the appointment. No apps to install, no software to learn. It just runs.\n\nYou have two tools:\n1. firecrawl — Scrapes a website. Pass the full URL including https://\n2. format_sms — Validates your SMS draft against formatting rules. Always run your draft through this before returning. If it returns issues, fix them and validate again. Only return the SMS after it says APPROVED.\n\nMANDATORY: You MUST call the firecrawl tool on the website URL before writing anything. This is not optional. Do not write the SMS until you have the firecrawl results. If you skip this step, the entire output is invalid. Call firecrawl first, read the results, then write.\n\nIMPORTANT: You do NOT have the owner's name. Do not guess a name. Never use \"Hey there\" or \"Hey friend\" or any generic filler.\n\nIf firecrawl fails or the domain is empty, write the SMS using only the company name, metro, rating, and review count. Do not mention the website or say you could not access it.\n\nReturn ONLY the raw SMS text. No explanations, no commentary, no validation notes, no quotes around it, nothing before or after. If your output contains anything other than the SMS itself, you have failed. Do not include validation results, reasoning, or commentary. Just the SMS.\n\nOPENING LINE RULES (CRITICAL — this determines if they read or delete):\nThe first line is everything. They see it in their notification preview. If it looks like marketing, they swipe it away.\n\nNEVER start with:\n- The company name (e.g. \"Plugged Electricians Atl, quick question\")\n- A statistic or percentage\n- \"I noticed\" or \"I came across\" or \"I saw that\"\n- \"Hey there\" or \"Hey friend\" or any generic filler\n- The offer or pitch\n\nALWAYS start with \"Hey\" and introduce yourself as Jacob naturally in the first line. Pick ONE of these opener patterns and adapt it:\n\n1. CASUAL RESEARCH HOOK — You were browsing and found them.\n   \"Hey, Jacob here. Was looking at your site and saw you do [specific service from website].\"\n   \"Hey it's Jacob, came across your Google page while looking at [trade] companies in [metro].\"\n\n2. SPECIFIC COMPLIMENT — Lead with what they're proud of.\n   \"Hey, Jacob here. [rating] stars with [review count] reviews in [metro] is legit.\"\n   \"Hey it's Jacob. [review count] reviews and a [rating] on Google, you guys are clearly doing good work out in [metro].\"\n\n3. RELATABLE PAIN AS A QUESTION — Make them nod.\n   \"Hey, Jacob here. Quick question, how do you handle calls when your guys are out on jobs?\"\n   \"Hey it's Jacob, random question. What happens when someone calls you after hours?\"\n\n4. PEER REFERENCE — Imply you're already in their world.\n   \"Hey, Jacob here. Been talking to a few [trade] companies in [metro] lately.\"\n   \"Hey it's Jacob, I work with a couple [trade] shops in [metro].\"\n\n5. DIRECT AND HONEST — Cut straight to it but sound human.\n   \"Hey, Jacob here. This might be random but I think I can help you book more jobs.\"\n   \"Hey it's Jacob. Saw your work online, got a quick idea that might help.\"\n\nIMPORTANT: Vary between \"Hey, Jacob here.\" and \"Hey it's Jacob,\" so they don't all sound identical. Mix it up.\n\nDo NOT end the message with \"- Jacob\" or any signature line. Your name is already in the opener.\n\nAfter the opener, the body should flow naturally. Do NOT drop a statistic right after the opener. If you use a stat, paraphrase it casually like a person would say it — \"most people just call the next guy\" instead of \"78% of customers go with the first company that responds.\"\n\nThe company name should appear in the body naturally, NOT as the first word of the message.\n\nHARD RULES:\n- Under 250 characters. Shorter is better. If you can say it in 150, do that.\n- No em dashes. Ever. Use periods or commas.\n- No semicolons.\n- No exclamation marks.\n- No emojis.\n- No hashtags.\n- No quotation marks around phrases for emphasis.\n- One short paragraph for the body. Then a blank line. Then the CTA question on its own line.\n- Do NOT end with a signature line. No \"- Jacob\" at the end. Your name is already in the opener.\n- Never mention \"AI\" or \"automation.\" Say \"system\" or \"tool\" instead.\n\nBANNED WORDS AND PHRASES:\nleverage, streamline, optimize, revolutionize, game-changer, cutting-edge, best-in-class, synergy, holistic, robust, scalable, innovative, transform, unlock, empower, elevate, amplify, drive growth, pain points, touch base, circle back, deep dive, move the needle, low-hanging fruit, at the end of the day, reach out, loop in, take it to the next level, actionable insights, value proposition, paradigm shift\n\nALSO BANNED:\n- Calendar links or any URLs in the first message\n- Questions that start with \"What if\"\n- \"I help [type of business] do [thing]\" format\n- Any sentence that could appear in a LinkedIn DM from a stranger\n\nTONE:\n- Talk like you text your friends. But professional.\n- Be specific. Use their company name, metro, review count, rating in the body naturally.\n- These are blue-collar business owners. Talk straight. No jargon.\n- Reference one real thing from their website (a service, their service area, their team, how they describe themselves).\n- Do not oversell. Do not hype. State what you do plainly.\n- Never drop a raw statistic. Paraphrase it like a person would say it in conversation. \"Most people just call the next guy\" not \"78% of customers go with the first company that responds.\"\n\nDETERMINE THE TRADE FROM THE WEBSITE. Use firecrawl to figure out if they are HVAC, plumbing, electrical, or another home service. Then pick the right hooks:\n\nHVAC:\n- Techs are on rooftops all day, nobody's answering the office phone\n- Summer and winter are peak season. One missed call on a hot day is a big install gone\n- After-hours emergency calls are the highest-value jobs and the most likely to be missed\n\nPlumbing:\n- Emergency calls come in at 2am. If nobody answers, they call the next guy\n- Plumbers are literally under houses and can't pick up\n- A single missed water heater replacement is a lot of money gone\n\nElectrical:\n- Panel upgrades, generator installs, EV charger jobs. High-ticket and customers call 2-3 companies\n- The first one to respond books the job. Most people just go with whoever picks up\n- Electricians are in attics and crawl spaces. They physically cannot answer\n\nMatch the hook to what you find on their website.\n\nCTA: End with a soft CTA question on its own line. Vary it:\n- Worth a quick chat?\n- Open to a quick call?\n- Any interest in seeing what this looks like?\n- Want me to show you how it works?\n- Down to hop on a quick call?\n- Curious if this would help?\n\nOutput ONLY the text message. Nothing before, nothing after.\nProcess: Write SMS using contact info + website research. Validate with format_sms. Fix any issues. Return ONLY the final approved SMS text."
+        }
+      },
+      "id": "c0dea20b-89bf-42e3-8497-8fa50746bdd5",
+      "name": "AI Agent — Write SMS2",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1904,
+        1376
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 400
+        }
+      },
+      "id": "0287fe54-42fd-4612-b4a9-f3c453dbf349",
+      "name": "Claude Sonnet 1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1904,
+        1584
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CRED_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const agentOutput = $input.first().json.output || $input.first().json.text || '';\n  let sms = agentOutput.replace(/^[\"']|[\"']$/g, '').trim();\n\n  let phone = String($('Process One at a Time2').first().json.phone || '').replace(/[^0-9]/g, '');\n\n  if (phone && !phone.startsWith('+')) {\n    phone = '+' + (phone.startsWith('1') ? phone : '1' + phone);\n  }\n\n  return [{\n    json: {\n      sms_message: sms,\n      mobile_phone: phone,\n      from_number: '+1XXXXXXXXXX',\n      chars: sms.length,\n      request_body: {\n        from: '+1XXXXXXXXXX',\n        to: [phone],\n        content: sms\n      }\n    }\n  }];\n} catch (e) {\n  return [{\n    json: {\n      error: e.message,\n      input_keys: Object.keys($input.first().json)\n    }\n  }];\n}"
+      },
+      "id": "42ef1598-4c31-48ca-bfa2-ad361e1a1107",
+      "name": "Extract SMS Message2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        1376
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphone.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "from",
+              "value": "={{ $json.request_body.from }}"
+            },
+            {
+              "name": "to",
+              "value": "={{ [$json.request_body.to[0]] }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.request_body.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a707ebbe-1100-4c61-89b4-7f856754570e",
+      "name": "Send SMS — OpenPhone2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2576,
+        1376
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_OPENPHONE_CRED_ID",
+          "name": "OpenPhone API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "1ebb7c2c-d81f-4246-b941-f0d5f3473852",
+      "name": "Rate Limit — 3s2",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2864,
+        1632
+      ],
+      "webhookId": "00000000-0000-0000-0000-000000000004"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Scrape Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2090867809,
+          "mode": "list",
+          "cachedResultName": "Group 2: Leads (10-50)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=2090867809"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        1600
+      ],
+      "id": "9a3b6454-0f20-4ba7-8355-f5e1bf2a013c",
+      "name": "Get row(s) in sheet2",
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "Company, Domain, Metro, Rating, Reviews, phone",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        1584
+      ],
+      "id": "5d47c85e-a029-4b43-961f-7af37644c9cf",
+      "name": "Split Out2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "422f07d5-7e5f-452d-9ece-dcaed42f5b0c",
+              "leftValue": "={{ $json.Valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "536b9926-6c67-477f-beb8-d09a96d1b26d",
+              "leftValue": "={{ $json.phone_type }}",
+              "rightValue": "mobile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "774f6da3-2107-4a2c-ac20-397f78e696c1",
+              "leftValue": "={{ $json['Activity score'] }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "9184e79b-96af-4d7f-9066-9fa64470a88b",
+              "leftValue": "={{ $json['Litigator check'] }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "545f1f16-a2a5-4833-955d-814d3248098a",
+              "leftValue": "={{ $('Get row(s) in sheet2').item.json.Sent }}",
+              "rightValue": "sent",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        864,
+        1600
+      ],
+      "id": "aa238246-de3b-41d9-8166-ea457de097fb",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a6dd6f44-5a5b-4982-9b4c-4ee041721309",
+              "name": "status",
+              "value": "={{ $json.Valid }}",
+              "type": "string"
+            },
+            {
+              "id": "4e9cacde-69dd-4931-978f-812cf3a77efe",
+              "name": "phone",
+              "value": "={{ $json['Verify phone number'] }}",
+              "type": "string"
+            },
+            {
+              "id": "6e201c89-7cb1-498e-bf54-ab7621a3308a",
+              "name": "phone_type",
+              "value": "={{ $json['Line type'] }}",
+              "type": "string"
+            },
+            {
+              "id": "c1bfdb43-a732-4bc4-a780-7ba165afa14e",
+              "name": "Company",
+              "value": "={{ $('Get row(s) in sheet2').item.json['Business Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "494fc490-3e32-4e46-ab1b-8c2346e1065e",
+              "name": "Domain",
+              "value": "={{ $('Get row(s) in sheet2').item.json.Website }}",
+              "type": "string"
+            },
+            {
+              "id": "9e3be6b0-bc87-4538-8516-996b496db887",
+              "name": "Metro",
+              "value": "={{ $('Get row(s) in sheet2').item.json.Metro }}",
+              "type": "string"
+            },
+            {
+              "id": "649e4898-1c97-4ab3-9e16-c54f1f80cd52",
+              "name": "Activity score",
+              "value": "={{ $json['Activity score'] }}",
+              "type": "number"
+            },
+            {
+              "id": "3906d789-3c2a-4d36-9a9b-8ce04fe23fb8",
+              "name": "Litigator check",
+              "value": "={{ $json['Litigator check'] }}",
+              "type": "boolean"
+            },
+            {
+              "id": "19f93998-b071-4c91-a998-c2b4dc670b7f",
+              "name": "Valid",
+              "value": "={{ $json.Valid }}",
+              "type": "boolean"
+            },
+            {
+              "id": "18f7b0a5-99f7-4942-8033-a5761c4b7cd6",
+              "name": "Activity score",
+              "value": "={{ $json['Activity score'] }}",
+              "type": "number"
+            },
+            {
+              "id": "41f8b4db-4bb0-440d-a3e8-4b9588f5ae07",
+              "name": "Rating",
+              "value": "={{ $('Get row(s) in sheet2').item.json.Rating }}",
+              "type": "number"
+            },
+            {
+              "id": "13642a2b-1ccd-414d-afc2-51658773623e",
+              "name": "Reviews",
+              "value": "={{ $('Get row(s) in sheet2').item.json.Reviews }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        672,
+        1600
+      ],
+      "id": "821a9f49-b2ce-40c4-a28d-f3465968435d",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "description": "Validates an SMS draft against formatting rules. Input should be the draft SMS text. Returns APPROVED if it passes or lists the issues to fix.",
+        "jsCode": "const draft = query;\nconst banned = ['leverage','streamline','optimize','revolutionize','game-changer','cutting-edge','best-in-class','synergy','holistic','robust','scalable','innovative','transform','unlock','empower','elevate','amplify','drive growth','pain points','touch base','circle back','deep dive','move the needle','low-hanging fruit','at the end of the day','reach out','loop in','take it to the next level','actionable insights','value proposition','paradigm shift','no monthly fees','no ongoing fees','no recurring cost'];\nlet issues = [];\nconst lower = draft.toLowerCase();\nfor (const w of banned) {\n  if (lower.includes(w)) issues.push('Contains banned phrase: ' + w);\n}\nif (draft.includes('—')) issues.push('Contains em dash');\nif (draft.includes(';')) issues.push('Contains semicolon');\nif (draft.includes('!')) issues.push('Contains exclamation mark');\nif (draft.length > 400) issues.push('Over 400 chars: ' + draft.length);\nif (draft.length > 250) issues.push('Over 250 chars preferred: ' + draft.length + '. Try to shorten.');\nif (draft.startsWith('Hi ') || draft.startsWith('Hello ') || draft.startsWith('Dear ')) issues.push('Bad greeting — use Hey or just the name');\nif (!lower.startsWith('hey')) issues.push('Must start with Hey — opener should be conversational');\nif (issues.length > 0) {\n  return 'ISSUES FOUND — fix these and try again: ' + issues.join('. ');\n}\nreturn 'SMS APPROVED (' + draft.length + ' chars)';"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2048,
+        1584
+      ],
+      "id": "8df6e6b6-5eba-4944-9f93-549d3ae08173",
+      "name": "Format & Validate SMS2"
+    },
+    {
+      "parameters": {
+        "content": "## Calling assistance\n",
+        "height": 528,
+        "width": 2672
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        416,
+        1344
+      ],
+      "typeVersion": 1,
+      "id": "86b71051-a6f5-431b-8aa7-e53cc1456625",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Scrape Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 2090867809,
+          "mode": "list",
+          "cachedResultName": "Group 2: Leads (10-50)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=2090867809"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Business Name": "={{ $('Process One at a Time2').item.json.Company }}",
+            "Sent": "={{ $json.data.status }}"
+          },
+          "matchingColumns": [
+            "Business Name"
+          ],
+          "schema": [
+            {
+              "id": "Business Name",
+              "displayName": "Business Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Phone",
+              "displayName": "Business Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reviews",
+              "displayName": "Reviews",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Metro",
+              "displayName": "Metro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Name",
+              "displayName": "Owner Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Title",
+              "displayName": "Owner Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Email",
+              "displayName": "Owner Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Personal Email",
+              "displayName": "Owner Personal Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Phone",
+              "displayName": "Owner Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Verify phone number",
+              "displayName": "Verify phone number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Line type",
+              "displayName": "Line type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mobile",
+              "displayName": "Mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valid",
+              "displayName": "Valid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carrier",
+              "displayName": "Carrier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity score",
+              "displayName": "Activity score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Litigator check",
+              "displayName": "Litigator check",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sent",
+              "displayName": "Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner LinkedIn",
+              "displayName": "Owner LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PMS Detected",
+              "displayName": "PMS Detected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Services",
+              "displayName": "Services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Estimated Units",
+              "displayName": "Estimated Units",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Emails Found",
+              "displayName": "Emails Found",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PDL Match",
+              "displayName": "PDL Match",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2800,
+        1376
+      ],
+      "id": "3a2c78d2-d8ae-40cf-9437-54adc25357cf",
+      "name": "Update row in sheet2",
+      "alwaysOutputData": false,
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "5bc2a150-c19c-44bd-9e3c-d4054b7ff9b2",
+      "name": "Process One at a Time3",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        2176
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Write a personalized cold SMS for this service provider.\n\nCONTACT:\n- Company: {{ $json['Company'] }}\n- Website: {{ $json['Domain'] }}\n- Metro: {{ $json['Metro'] }}\n- Google Rating: {{ $json['Rating'] }}\n- Google Reviews: {{ $json['Reviews'] }}\n- Phone: {{ $json['phone'] }}\n\nWe do NOT have the owner's name. Do not guess it.\n\nOFFER:\nAutomated review collection system. After every completed job, the customer gets a text with a one-tap link to leave a Google review. If they don't review in 24 hours, a follow-up goes out. If a customer is unhappy, they get routed to the owner first instead of posting on Google. Generates 15-30 new reviews per month on autopilot. Takes 10 minutes to set up.\n\nSTEPS:\n1. FIRST, you MUST call the firecrawl tool with the URL: {{ $json['Domain'] }}. You MUST do this before writing anything. Read the scraped content. Determine their trade (HVAC, plumbing, electrical, etc.) and pick ONE specific detail to reference in your SMS.\n2. Write the SMS following all rules in your system prompt. Match the hook to their trade and review count.\n3. Use the format_sms tool to validate your draft.\n4. If format_sms returns issues, fix them and validate again.\n5. Return ONLY the final approved SMS text. Nothing else. No validation notes, no commentary.",
+        "options": {
+          "systemMessage": "You write cold SMS messages that sound like a real person typed them on their phone. Not a marketer. Not a bot. A person.\n\nYou ARE Jacob. You are writing in first person as Jacob from Abode Automations. You help home service companies get more Google reviews without chasing customers for them. You set up a system that automatically asks every customer for a review after their job is done. One tap, done.\n\nYou have two tools:\n1. firecrawl — Scrapes a website. Pass the full URL including https://\n2. format_sms — Validates your SMS draft against formatting rules. Always run your draft through this before returning. If it returns issues, fix them and validate again. Only return the SMS after it says APPROVED.\n\nMANDATORY: You MUST call the firecrawl tool on the website URL before writing anything. This is not optional. Do not write the SMS until you have the firecrawl results. If you skip this step, the entire output is invalid. Call firecrawl first, read the results, then write.\n\nIMPORTANT: You do NOT have the owner's name. Do not guess a name. Never use \"Hey there\" or \"Hey friend\" or any generic filler.\n\nIf firecrawl fails or the domain is empty, write the SMS using only the company name, metro, rating, and review count. Do not mention the website or say you could not access it.\n\nReturn ONLY the raw SMS text. No explanations, no commentary, no validation notes, no quotes around it, nothing before or after. If your output contains anything other than the SMS itself, you have failed. Do not include validation results, reasoning, or commentary. Just the SMS.\n\nOPENING LINE RULES (CRITICAL — this determines if they read or delete):\nThe first line is everything. They see it in their notification preview. If it looks like marketing, they swipe it away.\n\nNEVER start with:\n- The company name (e.g. \"Plugged Electricians Atl, quick question\")\n- A statistic or percentage\n- \"I noticed\" or \"I came across\" or \"I saw that\"\n- \"Hey there\" or \"Hey friend\" or any generic filler\n- The offer or pitch\n\nALWAYS start with \"Hey\" and introduce yourself as Jacob naturally in the first line. Pick ONE of these opener patterns and adapt it:\n\n1. CASUAL RESEARCH HOOK — You were browsing and found them.\n   \"Hey, Jacob here. Was looking at your site and saw you do [specific service from website].\"\n   \"Hey it's Jacob, came across your Google page while looking at [trade] companies in [metro].\"\n\n2. SPECIFIC COMPLIMENT — Lead with what they're proud of.\n   \"Hey, Jacob here. [rating] stars with [review count] reviews in [metro] is legit.\"\n   \"Hey it's Jacob. [review count] reviews and a [rating] on Google, you guys are clearly doing good work out in [metro].\"\n\n3. RELATABLE PAIN AS A QUESTION — Make them nod.\n   \"Hey, Jacob here. Quick question, how do you handle calls when your guys are out on jobs?\"\n   \"Hey it's Jacob, random question. What happens when someone calls you after hours?\"\n\n4. PEER REFERENCE — Imply you're already in their world.\n   \"Hey, Jacob here. Been talking to a few [trade] companies in [metro] lately.\"\n   \"Hey it's Jacob, I work with a couple [trade] shops in [metro].\"\n\n5. DIRECT AND HONEST — Cut straight to it but sound human.\n   \"Hey, Jacob here. This might be random but I think I can help you book more jobs.\"\n   \"Hey it's Jacob. Saw your work online, got a quick idea that might help.\"\n\nIMPORTANT: Vary between \"Hey, Jacob here.\" and \"Hey it's Jacob,\" so they don't all sound identical. Mix it up.\n\nDo NOT end the message with \"- Jacob\" or any signature line. Your name is already in the opener.\n\nAfter the opener, the body should flow naturally. Do NOT drop a statistic right after the opener. If you use a stat, paraphrase it casually like a person would say it — \"most people just call the next guy\" instead of \"78% of customers go with the first company that responds.\"\n\nThe company name should appear in the body naturally, NOT as the first word of the message.\n\nHARD RULES:\n- Under 250 characters. Shorter is better. If you can say it in 150, do that.\n- No em dashes. Ever. Use periods or commas.\n- No semicolons.\n- No exclamation marks.\n- No emojis.\n- No hashtags.\n- No quotation marks around phrases for emphasis.\n- One short paragraph for the body. Then a blank line. Then the CTA question on its own line.\n- Do NOT end with a signature line. No \"- Jacob\" at the end. Your name is already in the opener.\n- Never mention \"AI\" or \"automation.\" Say \"system\" or \"tool\" instead.\n- You MUST reference their actual review count somewhere in the message. This is the personalization hook.\n\nBANNED WORDS AND PHRASES:\nleverage, streamline, optimize, revolutionize, game-changer, cutting-edge, best-in-class, synergy, holistic, robust, scalable, innovative, transform, unlock, empower, elevate, amplify, drive growth, pain points, touch base, circle back, deep dive, move the needle, low-hanging fruit, at the end of the day, reach out, loop in, take it to the next level, actionable insights, value proposition, paradigm shift\n\nALSO BANNED:\n- Calendar links or any URLs in the first message\n- Questions that start with \"What if\"\n- \"I help [type of business] do [thing]\" format\n- Any sentence that could appear in a LinkedIn DM from a stranger\n\nTONE:\n- Talk like you text your friends. But professional.\n- Be specific. Use their company name, metro, review count, rating in the body naturally.\n- These are blue-collar business owners. Talk straight. No jargon.\n- Reference one real thing from their website (a service, their service area, their team, how they describe themselves).\n- Do not oversell. Do not hype. State what you do plainly.\n- Never drop a raw statistic. Paraphrase it like a person would say it in conversation.\n\nBEFORE WRITING, ANALYZE THEIR REVIEW COUNT:\n- Reviews < 50: They're behind. Other shops in their area with more reviews are showing up first on Google. Frame as catching up.\n- Reviews 50-150: Decent but not dominant. They're close to owning the top spot. Frame as pulling ahead.\n- Reviews > 150: Strong. But Google cares about how many new reviews you get each month, not just the total. Frame as keeping the momentum going.\n\nDETERMINE THE TRADE FROM THE WEBSITE. Use firecrawl to figure out if they are HVAC, plumbing, electrical, or another home service. Then pick the right hooks:\n\nHVAC:\n- Homeowners check reviews before calling for a big system install. Reviews close deals before you even pick up the phone\n- Seasonal businesses live and die by showing up in local search. More reviews means more visibility when it matters\n- Most HVAC customers are happy but never think to leave a review unless asked\n\nPlumbing:\n- Emergency plumbing customers google \"plumber near me\" and pick whoever has the most reviews\n- A plumber with 200 reviews beats a plumber with 40 reviews every time in search, even if the smaller one has a perfect 5.0\n- Happy customers forget to review. Unhappy ones don't\n\nElectrical:\n- High-ticket jobs like panel upgrades and generator installs. Customers read every review before choosing\n- Most electrical companies have weak review counts because they just don't ask. Easy to stand out\n- Reviews are how strangers decide to trust you with their home\n\nMatch the hook to what you find on their website and their review count.\n\nCTA: End with a soft CTA question on its own line. Vary it:\n- Worth a quick chat?\n- Open to a quick call?\n- Any interest in seeing what this looks like?\n- Want me to show you how it works?\n- Down to hop on a quick call?\n- Curious if this would help?\n\nOutput ONLY the text message. Nothing before, nothing after.\nProcess: Write SMS using contact info + website research. Validate with format_sms. Fix any issues. Return ONLY the final approved SMS text."
+        }
+      },
+      "id": "47098839-4a60-49b6-a3fa-30c0c9ffb847",
+      "name": "AI Agent — Write SMS3",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        1968
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "Claude Sonnet 4.6"
+        },
+        "options": {
+          "maxTokensToSample": 400
+        }
+      },
+      "id": "008bfa8e-01a0-4e76-a7fe-3f568b4d54a7",
+      "name": "Claude Sonnet 2",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1920,
+        2176
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CRED_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const agentOutput = $input.first().json.output || $input.first().json.text || '';\n  let sms = agentOutput.replace(/^[\"']|[\"']$/g, '').trim();\n\n  let phone = String($('Process One at a Time3').first().json.phone || '').replace(/[^0-9]/g, '');\n\n  if (phone && !phone.startsWith('+')) {\n    phone = '+' + (phone.startsWith('1') ? phone : '1' + phone);\n  }\n\n  return [{\n    json: {\n      sms_message: sms,\n      mobile_phone: phone,\n      from_number: '+1XXXXXXXXXX',\n      chars: sms.length,\n      request_body: {\n        from: '+1XXXXXXXXXX',\n        to: [phone],\n        content: sms\n      }\n    }\n  }];\n} catch (e) {\n  return [{\n    json: {\n      error: e.message,\n      input_keys: Object.keys($input.first().json)\n    }\n  }];\n}"
+      },
+      "id": "9f5b64f9-b786-4b97-9d71-40f863f49ebd",
+      "name": "Extract SMS Message3",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        1968
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphone.com/v1/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "from",
+              "value": "={{ $json.request_body.from }}"
+            },
+            {
+              "name": "to",
+              "value": "={{ [$json.request_body.to[0]] }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.request_body.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "44fc9b51-fb9b-45c4-9ec5-f555338566c9",
+      "name": "Send SMS — OpenPhone3",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2592,
+        1968
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "YOUR_OPENPHONE_CRED_ID",
+          "name": "OpenPhone API"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {},
+      "id": "612a00f6-1a70-4d0d-96dd-d819cc5acea2",
+      "name": "Rate Limit — 3s3",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2880,
+        2224
+      ],
+      "webhookId": "00000000-0000-0000-0000-000000000005"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Scrape Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 743424120,
+          "mode": "list",
+          "cachedResultName": "Group 3: Leads (<10)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=743424120"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        480,
+        2192
+      ],
+      "id": "715ed217-88ab-45ce-8fc5-e82f0d15481d",
+      "name": "Get row(s) in sheet3",
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "Company, Domain, Metro, Rating, Reviews, phone",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        2176
+      ],
+      "id": "34d9bfb6-a4c8-4207-92e6-6db3d82656b4",
+      "name": "Split Out3"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "422f07d5-7e5f-452d-9ece-dcaed42f5b0c",
+              "leftValue": "={{ $json.Valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "536b9926-6c67-477f-beb8-d09a96d1b26d",
+              "leftValue": "={{ $json.phone_type }}",
+              "rightValue": "mobile",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "774f6da3-2107-4a2c-ac20-397f78e696c1",
+              "leftValue": "={{ $json['Activity score'] }}",
+              "rightValue": 70,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            },
+            {
+              "id": "9184e79b-96af-4d7f-9066-9fa64470a88b",
+              "leftValue": "={{ $json['Litigator check'] }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "545f1f16-a2a5-4833-955d-814d3248098a",
+              "leftValue": "={{ $('Get row(s) in sheet3').item.json.Sent }}",
+              "rightValue": "sent",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {
+          "ignoreCase": true
+        }
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        880,
+        2192
+      ],
+      "id": "809761df-7fbc-4c1f-80e6-4cfbfc80c685",
+      "name": "If3"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a6dd6f44-5a5b-4982-9b4c-4ee041721309",
+              "name": "status",
+              "value": "={{ $json.Valid }}",
+              "type": "string"
+            },
+            {
+              "id": "4e9cacde-69dd-4931-978f-812cf3a77efe",
+              "name": "phone",
+              "value": "={{ $json['Verify phone number'] }}",
+              "type": "string"
+            },
+            {
+              "id": "6e201c89-7cb1-498e-bf54-ab7621a3308a",
+              "name": "phone_type",
+              "value": "={{ $json['Line type'] }}",
+              "type": "string"
+            },
+            {
+              "id": "c1bfdb43-a732-4bc4-a780-7ba165afa14e",
+              "name": "Company",
+              "value": "={{ $('Get row(s) in sheet3').item.json['Business Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "494fc490-3e32-4e46-ab1b-8c2346e1065e",
+              "name": "Domain",
+              "value": "={{ $('Get row(s) in sheet3').item.json.Website }}",
+              "type": "string"
+            },
+            {
+              "id": "9e3be6b0-bc87-4538-8516-996b496db887",
+              "name": "Metro",
+              "value": "={{ $('Get row(s) in sheet3').item.json.Metro }}",
+              "type": "string"
+            },
+            {
+              "id": "649e4898-1c97-4ab3-9e16-c54f1f80cd52",
+              "name": "Activity score",
+              "value": "={{ $json['Activity score'] }}",
+              "type": "number"
+            },
+            {
+              "id": "3906d789-3c2a-4d36-9a9b-8ce04fe23fb8",
+              "name": "Litigator check",
+              "value": "={{ $json['Litigator check'] }}",
+              "type": "boolean"
+            },
+            {
+              "id": "19f93998-b071-4c91-a998-c2b4dc670b7f",
+              "name": "Valid",
+              "value": "={{ $json.Valid }}",
+              "type": "boolean"
+            },
+            {
+              "id": "18f7b0a5-99f7-4942-8033-a5761c4b7cd6",
+              "name": "Activity score",
+              "value": "={{ $json['Activity score'] }}",
+              "type": "number"
+            },
+            {
+              "id": "41f8b4db-4bb0-440d-a3e8-4b9588f5ae07",
+              "name": "Rating",
+              "value": "={{ $('Get row(s) in sheet3').item.json.Rating }}",
+              "type": "number"
+            },
+            {
+              "id": "13642a2b-1ccd-414d-afc2-51658773623e",
+              "name": "Reviews",
+              "value": "={{ $('Get row(s) in sheet3').item.json.Reviews }}",
+              "type": "number"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        688,
+        2192
+      ],
+      "id": "aafaeab2-6785-4e21-a05e-fa7a1da7c0cd",
+      "name": "Edit Fields3"
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "={{ $json.Domain }}",
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawlTool",
+      "typeVersion": 1,
+      "position": [
+        2224,
+        2160
+      ],
+      "id": "e35b3242-c27d-42d7-8dce-4c997abd0743",
+      "name": "Scrape a URL and get content as markdown or other formats in Firecrawl3",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "YOUR_FIRECRAWL_CRED_ID",
+          "name": "Firecrawl account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "description": "Validates an SMS draft against formatting rules. Input should be the draft SMS text. Returns APPROVED if it passes or lists the issues to fix.",
+        "jsCode": "const draft = query;\nconst banned = ['leverage','streamline','optimize','revolutionize','game-changer','cutting-edge','best-in-class','synergy','holistic','robust','scalable','innovative','transform','unlock','empower','elevate','amplify','drive growth','pain points','touch base','circle back','deep dive','move the needle','low-hanging fruit','at the end of the day','reach out','loop in','take it to the next level','actionable insights','value proposition','paradigm shift','no monthly fees','no ongoing fees','no recurring cost'];\nlet issues = [];\nconst lower = draft.toLowerCase();\nfor (const w of banned) {\n  if (lower.includes(w)) issues.push('Contains banned phrase: ' + w);\n}\nif (draft.includes('—')) issues.push('Contains em dash');\nif (draft.includes(';')) issues.push('Contains semicolon');\nif (draft.includes('!')) issues.push('Contains exclamation mark');\nif (draft.length > 400) issues.push('Over 400 chars: ' + draft.length);\nif (draft.length > 250) issues.push('Over 250 chars preferred: ' + draft.length + '. Try to shorten.');\nif (draft.startsWith('Hi ') || draft.startsWith('Hello ') || draft.startsWith('Dear ')) issues.push('Bad greeting — use Hey or just the name');\nif (!lower.startsWith('hey')) issues.push('Must start with Hey — opener should be conversational');\nif (issues.length > 0) {\n  return 'ISSUES FOUND — fix these and try again: ' + issues.join('. ');\n}\nreturn 'SMS APPROVED (' + draft.length + ' chars)';"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolCode",
+      "typeVersion": 1.3,
+      "position": [
+        2064,
+        2176
+      ],
+      "id": "852c94ff-2e94-4563-9343-c114930e5419",
+      "name": "Format & Validate SMS3"
+    },
+    {
+      "parameters": {
+        "content": "## Automated Review",
+        "height": 528,
+        "width": 2672
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        432,
+        1936
+      ],
+      "typeVersion": 1,
+      "id": "64309865-cc76-45a1-9388-fa76ec9fa144",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "list",
+          "cachedResultName": "Scrape Output",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 743424120,
+          "mode": "list",
+          "cachedResultName": "Group 3: Leads (<10)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit#gid=743424120"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Business Name": "={{ $('Process One at a Time3').item.json.Company }}",
+            "Sent": "={{ $json.data.status }}"
+          },
+          "matchingColumns": [
+            "Business Name"
+          ],
+          "schema": [
+            {
+              "id": "Business Name",
+              "displayName": "Business Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Address",
+              "displayName": "Address",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Business Phone",
+              "displayName": "Business Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Rating",
+              "displayName": "Rating",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Reviews",
+              "displayName": "Reviews",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Metro",
+              "displayName": "Metro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Name",
+              "displayName": "Owner Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Title",
+              "displayName": "Owner Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Email",
+              "displayName": "Owner Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Personal Email",
+              "displayName": "Owner Personal Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner Phone",
+              "displayName": "Owner Phone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Verify phone number",
+              "displayName": "Verify phone number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Line type",
+              "displayName": "Line type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Mobile",
+              "displayName": "Mobile",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valid",
+              "displayName": "Valid",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Carrier",
+              "displayName": "Carrier",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Activity score",
+              "displayName": "Activity score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Litigator check",
+              "displayName": "Litigator check",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sent",
+              "displayName": "Sent",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Owner LinkedIn",
+              "displayName": "Owner LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PMS Detected",
+              "displayName": "PMS Detected",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Services",
+              "displayName": "Services",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Estimated Units",
+              "displayName": "Estimated Units",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Emails Found",
+              "displayName": "Emails Found",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "PDL Match",
+              "displayName": "PDL Match",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2816,
+        1968
+      ],
+      "id": "db514a1a-c74a-4de0-91dc-9b83659aebd0",
+      "name": "Update row in sheet3",
+      "credentials": {
+        "googleApi": {
+          "id": "YOUR_GOOGLE_CRED_ID",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "scrape",
+        "url": "={{ $json.Domain }}",
+        "requestOptions": {}
+      },
+      "type": "@mendable/n8n-nodes-firecrawl.firecrawlTool",
+      "typeVersion": 1,
+      "position": [
+        2208,
+        1568
+      ],
+      "id": "d0a1a5dc-060f-4368-95d8-b6d3ff30f00d",
+      "name": "firecrawl",
+      "credentials": {
+        "firecrawlApi": {
+          "id": "YOUR_FIRECRAWL_CRED_ID",
+          "name": "Firecrawl account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Process One at a Time": {
+      "main": [
+        [
+          {
+            "node": "AI Agent — Write SMS",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Claude Sonnet 4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — Write SMS",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent — Write SMS": {
+      "main": [
+        [
+          {
+            "node": "Extract SMS Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract SMS Message": {
+      "main": [
+        [
+          {
+            "node": "Send SMS — OpenPhone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS — OpenPhone": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit — 3s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit — 3s": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a URL and get content as markdown or other formats in Firecrawl": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Validate SMS": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process One at a Time1": {
+      "main": [
+        [
+          {
+            "node": "AI Agent — Write SMS1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent — Write SMS1": {
+      "main": [
+        [
+          {
+            "node": "Extract SMS Message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet ": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — Write SMS1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract SMS Message1": {
+      "main": [
+        [
+          {
+            "node": "Send SMS — OpenPhone1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS — OpenPhone1": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit — 3s1": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a URL and get content as markdown or other formats in Firecrawl1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Validate SMS1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet1": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit — 3s1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process One at a Time2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent — Write SMS2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent — Write SMS2": {
+      "main": [
+        [
+          {
+            "node": "Extract SMS Message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet 1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — Write SMS2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract SMS Message2": {
+      "main": [
+        [
+          {
+            "node": "Send SMS — OpenPhone2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS — OpenPhone2": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit — 3s2": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out2": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Split Out2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Validate SMS2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS2",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet2": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit — 3s2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process One at a Time3": {
+      "main": [
+        [
+          {
+            "node": "AI Agent — Write SMS3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent — Write SMS3": {
+      "main": [
+        [
+          {
+            "node": "Extract SMS Message3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet 2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — Write SMS3",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract SMS Message3": {
+      "main": [
+        [
+          {
+            "node": "Send SMS — OpenPhone3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS — OpenPhone3": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit — 3s3": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet3": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out3": {
+      "main": [
+        [
+          {
+            "node": "Process One at a Time3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If3": {
+      "main": [
+        [
+          {
+            "node": "Split Out3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields3": {
+      "main": [
+        [
+          {
+            "node": "If3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape a URL and get content as markdown or other formats in Firecrawl3": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS3",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format & Validate SMS3": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS3",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update row in sheet3": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit — 3s3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "firecrawl": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent — Write SMS2",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "template-version",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "YOUR_N8N_INSTANCE_ID"
+  },
+  "id": "WORKFLOW_ID",
+  "tags": []
+}

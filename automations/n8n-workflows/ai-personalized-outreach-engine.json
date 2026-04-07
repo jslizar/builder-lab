@@ -1,0 +1,613 @@
+{
+  "name": "AI-Powered Personalized Outreach Engine",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "t1",
+      "name": "Start Campaign",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "t2",
+      "name": "Import Lead Database",
+      "type": "n8n-nodes-base.spreadsheetFile",
+      "typeVersion": 2,
+      "position": [
+        -144,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and clean contact data\nconst items = $input.all();\nreturn items.filter(i => i.json.phone && i.json.email);"
+      },
+      "id": "t3",
+      "name": "Validate Contacts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.cohort }}",
+                    "rightValue": "DFY Automations",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.cohort }}",
+                    "rightValue": "$500 AI Agent",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.cohort }}",
+                    "rightValue": "Tech Consulting",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t4",
+      "name": "Route by Cohort",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        352,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.firecrawl.dev/v1/scrape",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "t5a",
+      "name": "Scrape Company Website",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.firecrawl.dev/v1/scrape",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "t5b",
+      "name": "Scrape Company Website1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.firecrawl.dev/v1/scrape",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "t5c",
+      "name": "Scrape Company Website2",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        608,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract key business intelligence\nreturn $input.all();"
+      },
+      "id": "t6a",
+      "name": "Extract Business Intel",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract key business intelligence\nreturn $input.all();"
+      },
+      "id": "t6b",
+      "name": "Extract Business Intel1",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract key business intelligence\nreturn $input.all();"
+      },
+      "id": "t6c",
+      "name": "Extract Business Intel2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        864,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build cohort-specific prompt with research data\nreturn $input.all();"
+      },
+      "id": "t7",
+      "name": "Build Personalization Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You write personalized cold outreach messages based on real company research."
+        }
+      },
+      "id": "t8",
+      "name": "AI Agent — Personalized Message Writer",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "claude-sonnet-4-20250514"
+        },
+        "options": {
+          "maxTokensToSample": 350
+        }
+      },
+      "id": "t8model",
+      "name": "Claude Sonnet 4",
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        1360,
+        528
+      ],
+      "credentials": {
+        "anthropicApi": {
+          "id": "YOUR_ANTHROPIC_CRED_ID",
+          "name": "Anthropic API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Quality check: length, tone, banned words\nreturn $input.all();"
+      },
+      "id": "t9",
+      "name": "Message Quality Gate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check recipient timezone for business hours\nreturn $input.all();"
+      },
+      "id": "t10",
+      "name": "Timezone Business Hours Check",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ok_to_send }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "t11",
+      "name": "Within Send Window?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2112,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openphone.com/v1/messages",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "t12",
+      "name": "Send SMS via OpenPhone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2352,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "PATCH",
+        "url": "https://api.twenty.com/rest/contacts",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "t13",
+      "name": "Update CRM Record",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2608,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate campaign analytics\nreturn $input.all();"
+      },
+      "id": "t14",
+      "name": "Campaign Analytics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Queue for next business hours window\nreturn $input.all();"
+      },
+      "id": "t15",
+      "name": "Queue for Next Window",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2352,
+        464
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Campaign": {
+      "main": [
+        [
+          {
+            "node": "Import Lead Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Import Lead Database": {
+      "main": [
+        [
+          {
+            "node": "Validate Contacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Contacts": {
+      "main": [
+        [
+          {
+            "node": "Route by Cohort",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Cohort": {
+      "main": [
+        [
+          {
+            "node": "Scrape Company Website",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Scrape Company Website1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Scrape Company Website2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Company Website": {
+      "main": [
+        [
+          {
+            "node": "Extract Business Intel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Company Website1": {
+      "main": [
+        [
+          {
+            "node": "Extract Business Intel1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Company Website2": {
+      "main": [
+        [
+          {
+            "node": "Extract Business Intel2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Business Intel": {
+      "main": [
+        [
+          {
+            "node": "Build Personalization Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Business Intel1": {
+      "main": [
+        [
+          {
+            "node": "Build Personalization Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Business Intel2": {
+      "main": [
+        [
+          {
+            "node": "Build Personalization Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Personalization Context": {
+      "main": [
+        [
+          {
+            "node": "AI Agent — Personalized Message Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Sonnet 4": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent — Personalized Message Writer",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent — Personalized Message Writer": {
+      "main": [
+        [
+          {
+            "node": "Message Quality Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message Quality Gate": {
+      "main": [
+        [
+          {
+            "node": "Timezone Business Hours Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Timezone Business Hours Check": {
+      "main": [
+        [
+          {
+            "node": "Within Send Window?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Within Send Window?": {
+      "main": [
+        [
+          {
+            "node": "Send SMS via OpenPhone",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Queue for Next Window",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS via OpenPhone": {
+      "main": [
+        [
+          {
+            "node": "Update CRM Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update CRM Record": {
+      "main": [
+        [
+          {
+            "node": "Campaign Analytics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "template-version",
+  "meta": {
+    "instanceId": "YOUR_N8N_INSTANCE_ID"
+  },
+  "id": "WORKFLOW_ID",
+  "tags": []
+}
