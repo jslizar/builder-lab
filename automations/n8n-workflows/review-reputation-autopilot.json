@@ -1,0 +1,794 @@
+{
+  "name": "review-reputation-autopilot",
+  "nodes": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "name": "📋 Documentation",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-900, -500],
+      "parameters": {
+        "width": 900,
+        "height": 620,
+        "color": 4,
+        "content": "# Review & Reputation Autopilot\n**Version:** 1.0.0  |  **Author:** Otter Labs  |  **Trigger:** Webhook (job/order complete)\n\n## What This Workflow Does\n1. **Receives** a job/order completion event via webhook from your CRM or job management system\n2. **Waits** a configurable delay (default 24h) before reaching out\n3. **Sends** a review request via SMS (Twilio) or email (SendGrid) with a link to a micro-survey\n4. **Waits** for the customer to submit their star rating (1-5) via the micro-survey callback\n5. **Routes** based on rating:\n   - **4-5 stars** → Sends Google/Yelp review links + Slack celebration notification\n   - **1-3 stars** → Sends empathetic recovery message + Slack alert for save attempt\n\n## Required Credentials\n| Service | Type | Auth Detail |\n|---------|------|-------------|\n| Twilio | HTTP Basic Auth | Account SID (username) + Auth Token (password) |\n| SendGrid | HTTP Header Auth | name=Authorization, value=Bearer YOUR_API_KEY |\n| Slack | None (webhook URL) | Incoming Webhook URLs for review + save channels |\n\n## Micro-Survey Page\nThis workflow requires a hosted micro-survey page that:\n1. Displays \"How was your experience with {business}?\"\n2. Shows 5 clickable star buttons\n3. On click, POSTs `{ \"rating\": N }` to the `callback` URL from the query params\n4. Shows a thank-you confirmation\n\nThe callback URL is automatically generated per execution. Include a simple HTML page\nor use Typeform/Tally with a webhook.\n\n## Webhook Payload (Expected)\n```json\n{\n  \"customerName\": \"John Smith\",\n  \"customerPhone\": \"+15551234567\",\n  \"customerEmail\": \"john@example.com\",\n  \"jobId\": \"job_456\",\n  \"jobType\": \"HVAC Repair\",\n  \"technicianName\": \"Mike\"\n}\n```\nField names are flexible — see Normalize Data node for supported aliases.\n\n## Configuration\nSet all values in the **⚙️ Config** node before activating.\nDo NOT hardcode values anywhere else."
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "name": "🔔 Phase 1: Trigger & Setup",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-240, -400],
+      "parameters": {
+        "width": 740,
+        "height": 180,
+        "color": 5,
+        "content": "## Phase 1 — Trigger & Setup\nWebhook receives the job completion event from your CRM (ServiceTitan, Jobber, Housecall Pro, or any system that can fire a POST). The Normalize node handles field name differences between CRMs so you don't have to rewrite the workflow per integration."
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000003",
+      "name": "⏰ Phase 2: Delay & Outreach",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [480, -400],
+      "parameters": {
+        "width": 980,
+        "height": 180,
+        "color": 6,
+        "content": "## Phase 2 — Delay & Outreach\nWaits the configured delay (default 24h — enough time for the customer to experience the result, not so long they forget). Then sends a review request via SMS or email depending on available contact info. The message includes a link to a micro-survey page with a unique callback URL so the workflow knows which execution to resume."
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000004",
+      "name": "🔀 Phase 3: Rating & Routing",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1680, -800],
+      "parameters": {
+        "width": 1300,
+        "height": 180,
+        "color": 7,
+        "content": "## Phase 3 — Rating Response & Routing\nWhen the customer submits their rating via the micro-survey, the workflow resumes. Ratings of 4-5 stars get redirected to Google/Yelp with a thank-you message — capitalizing on positive sentiment while it's fresh. Ratings of 1-3 stars trigger an empathetic recovery message and an immediate Slack alert so your team can attempt a save before the customer posts a negative public review."
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000005",
+      "name": "🔗 Job Complete",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-240, 0],
+      "webhookId": "review-autopilot-job-complete",
+      "parameters": {
+        "path": "job-complete",
+        "httpMethod": "POST",
+        "responseMode": "onReceived",
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000006",
+      "name": "⚙️ Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.3,
+      "position": [0, 0],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-01",
+              "name": "businessName",
+              "value": "YOUR_BUSINESS_NAME",
+              "type": "string"
+            },
+            {
+              "id": "cfg-02",
+              "name": "googleReviewUrl",
+              "value": "https://search.google.com/local/writereview?placeid=YOUR_GOOGLE_PLACE_ID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-03",
+              "name": "yelpReviewUrl",
+              "value": "https://www.yelp.com/writeareview/biz/YOUR_YELP_BIZ_ID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-04",
+              "name": "twilioAccountSid",
+              "value": "YOUR_TWILIO_ACCOUNT_SID",
+              "type": "string"
+            },
+            {
+              "id": "cfg-05",
+              "name": "twilioFromNumber",
+              "value": "+1XXXXXXXXXX",
+              "type": "string"
+            },
+            {
+              "id": "cfg-06",
+              "name": "sendgridFromEmail",
+              "value": "reviews@yourbusiness.com",
+              "type": "string"
+            },
+            {
+              "id": "cfg-07",
+              "name": "sendgridFromName",
+              "value": "YOUR_BUSINESS_NAME",
+              "type": "string"
+            },
+            {
+              "id": "cfg-08",
+              "name": "slackReviewChannelWebhook",
+              "value": "YOUR_SLACK_WEBHOOK_URL_FOR_REVIEWS",
+              "type": "string"
+            },
+            {
+              "id": "cfg-09",
+              "name": "slackSaveChannelWebhook",
+              "value": "YOUR_SLACK_WEBHOOK_URL_FOR_SAVES",
+              "type": "string"
+            },
+            {
+              "id": "cfg-10",
+              "name": "ratingThreshold",
+              "value": "4",
+              "type": "string"
+            },
+            {
+              "id": "cfg-11",
+              "name": "delayHours",
+              "value": "24",
+              "type": "string"
+            },
+            {
+              "id": "cfg-12",
+              "name": "n8nWebhookBaseUrl",
+              "value": "https://YOUR_N8N_INSTANCE.com",
+              "type": "string"
+            },
+            {
+              "id": "cfg-13",
+              "name": "microSurveyUrl",
+              "value": "https://YOUR_DOMAIN.com/rate",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000007",
+      "name": "📝 Normalize Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================\n// Normalize Job Completion Data\n// Supports common CRM field naming conventions so the workflow\n// works with ServiceTitan, Jobber, Housecall Pro, or any\n// system that can POST JSON.\n// ============================================================\n\nconst raw = $input.first().json;\nconst cfg = $('⚙️ Config').first().json;\n\nconst normalized = {\n  customerId: raw.customerId || raw.customer_id || raw.id || '',\n  customerName: raw.customerName || raw.customer_name || raw.name ||\n    `${raw.firstName || raw.first_name || ''} ${raw.lastName || raw.last_name || ''}`.trim() || 'Valued Customer',\n  customerPhone: raw.customerPhone || raw.customer_phone || raw.phone || raw.mobile || '',\n  customerEmail: raw.customerEmail || raw.customer_email || raw.email || '',\n  jobId: raw.jobId || raw.job_id || raw.orderId || raw.order_id || raw.invoiceId || raw.invoice_id || '',\n  jobType: raw.jobType || raw.job_type || raw.service || raw.serviceType || raw.service_type || '',\n  technicianName: raw.technicianName || raw.technician_name || raw.assignee || raw.tech || '',\n  completedAt: raw.completedAt || raw.completed_at || raw.completedDate || new Date().toISOString()\n};\n\nnormalized.hasPhone = !!normalized.customerPhone;\nnormalized.hasEmail = !!normalized.customerEmail;\nnormalized.channel = normalized.hasPhone ? 'sms' : 'email';\n\nif (!normalized.hasPhone && !normalized.hasEmail) {\n  throw new Error(\n    `No contact method for customer \"${normalized.customerName}\" (job ${normalized.jobId}). ` +\n    `Webhook must include a phone number or email address.`\n  );\n}\n\nconsole.log(`Job ${normalized.jobId} complete for ${normalized.customerName} — will contact via ${normalized.channel}`);\n\nreturn [{ json: normalized }];"
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000008",
+      "name": "⏳ Wait Before Sending",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [480, 0],
+      "parameters": {
+        "resume": "timeInterval",
+        "amount": "={{ parseInt($node['⚙️ Config'].json.delayHours) || 24 }}",
+        "unit": "hours"
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000009",
+      "name": "📝 Build Review Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 0],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================\n// Build Review Request Messages (SMS + Email)\n// Constructs the micro-survey URL with a unique callback so\n// the workflow resumes when the customer submits their rating.\n// ============================================================\n\nconst customer = $('📝 Normalize Data').first().json;\nconst cfg = $('⚙️ Config').first().json;\n\n// Build the callback URL that the micro-survey page will POST to\nconst callbackUrl = `${cfg.n8nWebhookBaseUrl}/webhook-waiting/${$execution.id}`;\n\n// Build the survey URL the customer will click\nconst surveyUrl = `${cfg.microSurveyUrl}` +\n  `?callback=${encodeURIComponent(callbackUrl)}` +\n  `&business=${encodeURIComponent(cfg.businessName)}` +\n  `&customer=${encodeURIComponent(customer.customerName)}`;\n\nconst firstName = customer.customerName.split(' ')[0];\n\n// --- SMS Body ---\nconst smsBody = `Hi ${firstName}! Thanks for choosing ${cfg.businessName}` +\n  `${customer.jobType ? ` for your ${customer.jobType}` : ''}. ` +\n  `We'd love your feedback — it only takes 10 seconds:\\n${surveyUrl}`;\n\n// --- Email ---\nconst emailSubject = `How was your experience with ${cfg.businessName}?`;\n\nconst emailHtml = [\n  `<div style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;\">`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">Hi ${firstName},</p>`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">Thank you for choosing <strong>${cfg.businessName}</strong>`,\n  customer.jobType ? ` for your ${customer.jobType}` : '',\n  `!</p>`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">We'd love to hear about your experience. It only takes 10 seconds:</p>`,\n  `<p style=\"margin: 28px 0; text-align: center;\">`,\n  `<a href=\"${surveyUrl}\" style=\"background: #2563eb; color: #ffffff; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 16px;\">Rate Your Experience</a>`,\n  `</p>`,\n  `<p style=\"font-size: 14px; color: #6b7280;\">Your feedback helps us improve and helps other customers find us.</p>`,\n  `<p style=\"font-size: 14px; color: #6b7280;\">Thanks,<br><strong>${cfg.businessName}</strong></p>`,\n  `</div>`\n].join('\\n');\n\n// Pre-build SendGrid payload for the Email HTTP node\nconst sendgridPayload = {\n  personalizations: [{ to: [{ email: customer.customerEmail }] }],\n  from: { email: cfg.sendgridFromEmail, name: cfg.sendgridFromName || cfg.businessName },\n  subject: emailSubject,\n  content: [{ type: 'text/html', value: emailHtml }]\n};\n\nconsole.log(`Review request built for ${customer.customerName} — survey URL: ${surveyUrl}`);\n\nreturn [{\n  json: {\n    ...customer,\n    surveyUrl,\n    callbackUrl,\n    smsBody,\n    emailSubject,\n    emailHtml,\n    sendgridPayload,\n    firstName\n  }\n}];"
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000010",
+      "name": "🔀 Has Phone?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [960, 0],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-phone",
+              "leftValue": "={{ $json.hasPhone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000011",
+      "name": "📱 SMS: Review Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, -200],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $node['⚙️ Config'].json.twilioAccountSid }}/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $json.customerPhone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $node['⚙️ Config'].json.twilioFromNumber }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.smsBody }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REPLACE_WITH_TWILIO_CREDENTIAL_ID",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000012",
+      "name": "📧 Email: Review Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1200, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify($json.sendgridPayload) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SENDGRID_CREDENTIAL_ID",
+          "name": "SendGrid API"
+        }
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000013",
+      "name": "⏳ Wait for Rating",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1440, 0],
+      "parameters": {
+        "resume": "webhook",
+        "options": {
+          "responseCode": 200
+        }
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000014",
+      "name": "📝 Parse Rating",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 0],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================\n// Parse Rating from Micro-Survey Callback\n// The Wait node outputs the webhook POST body from the\n// micro-survey page. We extract the rating and merge it\n// with the original customer data.\n// ============================================================\n\nconst ratingData = $input.first().json;\nconst customer = $('📝 Normalize Data').first().json;\nconst cfg = $('⚙️ Config').first().json;\n\n// Extract rating — support multiple field names\nconst rating = parseInt(\n  ratingData.rating || ratingData.stars || ratingData.score || 0\n);\n\nconst comment = ratingData.comment || ratingData.feedback || ratingData.message || '';\n\nif (rating < 1 || rating > 5) {\n  throw new Error(`Invalid rating received: ${rating}. Expected integer 1-5. Raw data: ${JSON.stringify(ratingData)}`);\n}\n\nconst threshold = parseInt(cfg.ratingThreshold) || 4;\nconst isPositive = rating >= threshold;\n\nconsole.log(`${customer.customerName} rated ${rating}/5 — ${isPositive ? 'POSITIVE → send review links' : 'NEGATIVE → save attempt'}`);\n\nreturn [{\n  json: {\n    rating,\n    comment,\n    isPositive,\n    ...customer,\n    ratedAt: new Date().toISOString()\n  }\n}];"
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000015",
+      "name": "⭐ Rating ≥ 4?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1920, 0],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-is-positive",
+              "leftValue": "={{ $json.isPositive }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000016",
+      "name": "🌟 Build Redirect Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, -400],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================\n// Build Positive Follow-Up\n// Thank the customer and send them to Google/Yelp to leave\n// a public review while their positive sentiment is fresh.\n// ============================================================\n\nconst data = $input.first().json;\nconst cfg = $('⚙️ Config').first().json;\n\nconst firstName = data.customerName.split(' ')[0];\n\n// --- SMS ---\nconst smsBody = `Thank you for the ${data.rating}-star rating, ${firstName}! ` +\n  `Would you mind sharing your experience? It really helps us:\\n\\n` +\n  `Google: ${cfg.googleReviewUrl}\\n` +\n  `Yelp: ${cfg.yelpReviewUrl}`;\n\n// --- Email ---\nconst emailSubject = `Thank you for your ${data.rating}-star rating!`;\nconst emailHtml = [\n  `<div style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;\">`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">Hi ${firstName},</p>`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">Thank you so much for the <strong>${data.rating}-star rating</strong>! We're thrilled you had a great experience.</p>`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">Would you mind taking 30 seconds to share on one of these platforms? It makes a huge difference for us:</p>`,\n  `<p style=\"margin: 28px 0; text-align: center;\">`,\n  `<a href=\"${cfg.googleReviewUrl}\" style=\"background: #4285f4; color: #ffffff; padding: 14px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; margin-right: 12px;\">Review on Google</a>`,\n  `<a href=\"${cfg.yelpReviewUrl}\" style=\"background: #d32323; color: #ffffff; padding: 14px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;\">Review on Yelp</a>`,\n  `</p>`,\n  `<p style=\"font-size: 14px; color: #6b7280;\">Thanks again for choosing <strong>${cfg.businessName}</strong>!</p>`,\n  `</div>`\n].join('\\n');\n\nconst sendgridPayload = {\n  personalizations: [{ to: [{ email: data.customerEmail }] }],\n  from: { email: cfg.sendgridFromEmail, name: cfg.sendgridFromName || cfg.businessName },\n  subject: emailSubject,\n  content: [{ type: 'text/html', value: emailHtml }]\n};\n\n// --- Slack ---\nconst stars = Array(data.rating).fill('\\u2b50').join('');\nconst slackMessage = `*${stars} ${data.rating}-Star Rating Received!*\\n\\n` +\n  `*Customer:* ${data.customerName}\\n` +\n  `*Job:* ${data.jobType || 'N/A'} (${data.jobId})\\n` +\n  `*Rating:* ${stars}\\n` +\n  (data.comment ? `*Comment:* ${data.comment}\\n` : '') +\n  `\\n_Sent Google & Yelp review links._`;\n\nreturn [{\n  json: {\n    ...data,\n    smsBody,\n    emailSubject,\n    emailHtml,\n    sendgridPayload,\n    slackMessage\n  }\n}];"
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000017",
+      "name": "🔀 Redirect: Has Phone?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2400, -400],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-redirect-phone",
+              "leftValue": "={{ $json.hasPhone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000018",
+      "name": "📱 SMS: Review Links",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, -600],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $node['⚙️ Config'].json.twilioAccountSid }}/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $json.customerPhone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $node['⚙️ Config'].json.twilioFromNumber }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.smsBody }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REPLACE_WITH_TWILIO_CREDENTIAL_ID",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000019",
+      "name": "📧 Email: Review Links",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, -200],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify($json.sendgridPayload) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SENDGRID_CREDENTIAL_ID",
+          "name": "SendGrid API"
+        }
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000020",
+      "name": "💬 Slack: Great Review",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, -400],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['⚙️ Config'].json.slackReviewChannelWebhook }}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.slackMessage, unfurl_links: false }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000021",
+      "name": "😟 Build Recovery Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 400],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ============================================================\n// Build Recovery Message for Low Ratings\n// Empathetic response that opens the door for resolution.\n// The goal: prevent a negative public review by showing\n// the customer you care and will make it right.\n// ============================================================\n\nconst data = $input.first().json;\nconst cfg = $('⚙️ Config').first().json;\n\nconst firstName = data.customerName.split(' ')[0];\n\n// --- SMS ---\nconst smsBody = `Hi ${firstName}, thank you for your honest feedback. ` +\n  `We're sorry your experience with ${cfg.businessName} wasn't what you expected. ` +\n  `A member of our team will reach out to make things right.`;\n\n// --- Email ---\nconst emailSubject = `We want to make things right, ${firstName}`;\nconst emailHtml = [\n  `<div style=\"font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px;\">`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">Hi ${firstName},</p>`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">Thank you for sharing your honest feedback about your experience with <strong>${cfg.businessName}</strong>.</p>`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">We're sorry we didn't meet your expectations`,\n  data.jobType ? ` with your ${data.jobType}` : '',\n  `. Your satisfaction matters to us, and a member of our team will be reaching out personally to make things right.</p>`,\n  `<p style=\"font-size: 16px; color: #1a1a1a;\">If you'd like to reach us directly in the meantime, please reply to this email or call us.</p>`,\n  `<p style=\"font-size: 14px; color: #6b7280;\">Thank you for giving us the chance to improve,<br><strong>${cfg.businessName}</strong></p>`,\n  `</div>`\n].join('\\n');\n\nconst sendgridPayload = {\n  personalizations: [{ to: [{ email: data.customerEmail }] }],\n  from: { email: cfg.sendgridFromEmail, name: cfg.sendgridFromName || cfg.businessName },\n  subject: emailSubject,\n  content: [{ type: 'text/html', value: emailHtml }]\n};\n\n// --- Slack (urgent) ---\nconst stars = Array(data.rating).fill('\\u2b50').join('');\nconst slackMessage = `*\\ud83d\\udea8 Low Rating — Save Attempt Needed*\\n\\n` +\n  `*Customer:* ${data.customerName}\\n` +\n  `*Phone:* ${data.customerPhone || 'N/A'}\\n` +\n  `*Email:* ${data.customerEmail || 'N/A'}\\n` +\n  `*Job:* ${data.jobType || 'N/A'} (${data.jobId})\\n` +\n  `*Rating:* ${stars} (${data.rating}/5)\\n` +\n  (data.comment ? `*Comment:* \"${data.comment}\"\\n` : '') +\n  `*Technician:* ${data.technicianName || 'N/A'}\\n` +\n  `\\n_Recovery message sent. Follow up ASAP to prevent negative public review._`;\n\nreturn [{\n  json: {\n    ...data,\n    smsBody,\n    emailSubject,\n    emailHtml,\n    sendgridPayload,\n    slackMessage\n  }\n}];"
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000022",
+      "name": "🔀 Recovery: Has Phone?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2400, 400],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-recovery-phone",
+              "leftValue": "={{ $json.hasPhone }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000023",
+      "name": "📱 SMS: Recovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, 200],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.twilio.com/2010-04-01/Accounts/{{ $node['⚙️ Config'].json.twilioAccountSid }}/Messages.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "To",
+              "value": "={{ $json.customerPhone }}"
+            },
+            {
+              "name": "From",
+              "value": "={{ $node['⚙️ Config'].json.twilioFromNumber }}"
+            },
+            {
+              "name": "Body",
+              "value": "={{ $json.smsBody }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "REPLACE_WITH_TWILIO_CREDENTIAL_ID",
+          "name": "Twilio API"
+        }
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000024",
+      "name": "📧 Email: Recovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, 600],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.sendgrid.com/v3/mail/send",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify($json.sendgridPayload) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SENDGRID_CREDENTIAL_ID",
+          "name": "SendGrid API"
+        }
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000025",
+      "name": "🚨 Slack: Save Attempt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 400],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['⚙️ Config'].json.slackSaveChannelWebhook }}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ text: $json.slackMessage, unfurl_links: false }) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000026",
+      "name": "🚨 Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [-240, 800],
+      "parameters": {}
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000027",
+      "name": "🔴 Error Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [0, 800],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $node['⚙️ Config'].json.slackSaveChannelWebhook }}",
+        "sendBody": true,
+        "contentType": "json",
+        "jsonBody": "={{ JSON.stringify({ text: `*\\ud83d\\udd34 Review Autopilot Failed*\\n\\n*Error:* ${$json.error?.message || 'Unknown error'}\\n*Node:* ${$json.execution?.lastNodeExecuted || 'Unknown'}\\n*Time:* ${new Date().toLocaleString()}\\n\\nCheck n8n for full execution details.`, unfurl_links: false }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "🔗 Job Complete": {
+      "main": [
+        [{ "node": "⚙️ Config", "type": "main", "index": 0 }]
+      ]
+    },
+    "⚙️ Config": {
+      "main": [
+        [{ "node": "📝 Normalize Data", "type": "main", "index": 0 }]
+      ]
+    },
+    "📝 Normalize Data": {
+      "main": [
+        [{ "node": "⏳ Wait Before Sending", "type": "main", "index": 0 }]
+      ]
+    },
+    "⏳ Wait Before Sending": {
+      "main": [
+        [{ "node": "📝 Build Review Request", "type": "main", "index": 0 }]
+      ]
+    },
+    "📝 Build Review Request": {
+      "main": [
+        [{ "node": "🔀 Has Phone?", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔀 Has Phone?": {
+      "main": [
+        [{ "node": "📱 SMS: Review Request", "type": "main", "index": 0 }],
+        [{ "node": "📧 Email: Review Request", "type": "main", "index": 0 }]
+      ]
+    },
+    "📱 SMS: Review Request": {
+      "main": [
+        [{ "node": "⏳ Wait for Rating", "type": "main", "index": 0 }]
+      ]
+    },
+    "📧 Email: Review Request": {
+      "main": [
+        [{ "node": "⏳ Wait for Rating", "type": "main", "index": 0 }]
+      ]
+    },
+    "⏳ Wait for Rating": {
+      "main": [
+        [{ "node": "📝 Parse Rating", "type": "main", "index": 0 }]
+      ]
+    },
+    "📝 Parse Rating": {
+      "main": [
+        [{ "node": "⭐ Rating ≥ 4?", "type": "main", "index": 0 }]
+      ]
+    },
+    "⭐ Rating ≥ 4?": {
+      "main": [
+        [{ "node": "🌟 Build Redirect Message", "type": "main", "index": 0 }],
+        [{ "node": "😟 Build Recovery Message", "type": "main", "index": 0 }]
+      ]
+    },
+    "🌟 Build Redirect Message": {
+      "main": [
+        [{ "node": "🔀 Redirect: Has Phone?", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔀 Redirect: Has Phone?": {
+      "main": [
+        [{ "node": "📱 SMS: Review Links", "type": "main", "index": 0 }],
+        [{ "node": "📧 Email: Review Links", "type": "main", "index": 0 }]
+      ]
+    },
+    "📱 SMS: Review Links": {
+      "main": [
+        [{ "node": "💬 Slack: Great Review", "type": "main", "index": 0 }]
+      ]
+    },
+    "📧 Email: Review Links": {
+      "main": [
+        [{ "node": "💬 Slack: Great Review", "type": "main", "index": 0 }]
+      ]
+    },
+    "😟 Build Recovery Message": {
+      "main": [
+        [{ "node": "🔀 Recovery: Has Phone?", "type": "main", "index": 0 }]
+      ]
+    },
+    "🔀 Recovery: Has Phone?": {
+      "main": [
+        [{ "node": "📱 SMS: Recovery", "type": "main", "index": 0 }],
+        [{ "node": "📧 Email: Recovery", "type": "main", "index": 0 }]
+      ]
+    },
+    "📱 SMS: Recovery": {
+      "main": [
+        [{ "node": "🚨 Slack: Save Attempt", "type": "main", "index": 0 }]
+      ]
+    },
+    "📧 Email: Recovery": {
+      "main": [
+        [{ "node": "🚨 Slack: Save Attempt", "type": "main", "index": 0 }]
+      ]
+    },
+    "🚨 Error Trigger": {
+      "main": [
+        [{ "node": "🔴 Error Alert", "type": "main", "index": 0 }]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": ""
+  },
+  "pinData": {},
+  "staticData": null,
+  "tags": [
+    "review-management",
+    "reputation",
+    "twilio",
+    "sms",
+    "email",
+    "slack",
+    "sellable"
+  ]
+}
